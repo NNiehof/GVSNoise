@@ -67,7 +67,7 @@ class GVS(object):
         logging.info("{0} start GVS".format(t_start))
 
         self.writer.write_many_sample(current_profile)
-        self.task.wait_until_done(timeout=30.0)
+        self.task.wait_until_done(timeout=nidaqmx.constants.WAIT_INFINITELY)
 
         t_stop = time.time()
         logging.info("{0} stop GVS".format(t_stop))

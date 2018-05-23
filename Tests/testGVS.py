@@ -1,5 +1,6 @@
 # Nynke Niehof, 2018
 
+import numpy as np
 import unittest
 from sys import path
 from os.path import dirname
@@ -32,8 +33,19 @@ class test_max_voltage(unittest.TestCase):
         self.gvs4.quit()
 
 
+def test_signal():
+    """
+    Generate a signal with an alternating step from 0 V to 1 V and to -1 V.
+    Check the generated voltage with an oscilloscope.
+    """
+    gvs = GVS(max_voltage=3.0, logfile="testGVSlog.log")
+    samples = np.concatenate((np.zeros(500), np.ones(1000), np.zeros(500)))
+    samples = np.concatenate((samples, -samples, samples, -samples))
+    gvs.write_to_channel(samples)
+    gvs.quit()
+
 if __name__ == "__main__":
     unittest.main()
 
-
+    test_signal()
 
