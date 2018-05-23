@@ -7,11 +7,7 @@ import nidaqmx
 class GVS:
     def __init__(self, max_voltage=3.0):
 
-        # limit to 3 Volts
-        if max_voltage > 3.0:
-            self.max_voltage = 3.0
-        else:
-            self.max_voltage = max_voltage
+        self.max_voltage = max_voltage
 
         # create a task and virtual output channel
         try:
@@ -31,3 +27,14 @@ class GVS:
         # start the task
         task.start()
         print "GVS task started"
+
+    @property
+    def max_voltage(self):
+        return self.__max_voltage
+
+    @max_voltage.setter
+    def max_voltage(self, max_voltage):
+        if max_voltage > 3.0:
+            self.__max_voltage = 3.0
+        else:
+            self.__max_voltage = max_voltage
