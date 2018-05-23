@@ -7,10 +7,10 @@ import time
 import logging
 
 
-class GVS:
+class GVS(object):
     def __init__(self, max_voltage=3.0, logfile=None):
 
-        self.max_voltage = max_voltage
+        self.max_voltage = abs(max_voltage)
 
         # set up log file
         if not logfile:
@@ -39,7 +39,7 @@ class GVS:
             )
             logging.info("GVS task and channel created")
         except nidaqmx.errors.DaqError as err:
-            print "DAQmx error: {0}".format(err)
+            logging.ERROR("DAQmx error: {0}".format(err))
             sys.exit(1)
 
         self.task.start()
@@ -47,16 +47,16 @@ class GVS:
 
     @property
     def max_voltage(self):
-        return self.__max_voltage
+        return self._max_voltage
 
     @max_voltage.setter
     def max_voltage(self, max_voltage):
         if max_voltage > 3.0:
-            self.__max_voltage = 3.0
+            self._max_voltage = 3.0
         else:
-            self.__max_voltage = max_voltage
+            self._max_voltage = max_voltage
 
-    def writeToChannel(self, current_profile):
+    def write_to_channel(self, current_profile):
         """
         Send a current profile to the output channel.
 
