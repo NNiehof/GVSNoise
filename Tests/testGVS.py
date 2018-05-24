@@ -9,7 +9,7 @@ path.append(dirname(path[0]))
 from Experiment.GVS import GVS
 
 
-class test_max_voltage(unittest.TestCase):
+class TestMaxVoltage(unittest.TestCase):
 
     def test_upper_lim(self):
         self.gvs1 = GVS(max_voltage=5.0, logfile="testGVSlog.log")
