@@ -23,12 +23,12 @@ class TestGenStim(object):
         plt.xlabel("sample")
         plt.ylabel("amplitude (mA)")
         plt.title(title)
-        plt.show()
 
 
 if __name__ == "__main__":
 
     f_samp = 1e3
     test_stim = TestGenStim(f_samp)
-    test_stim.test_noise(10.0, 3.0)
+    test_stim.test_noise(5.0, 3.0)
     test_stim.test_fade(f_samp * 0.5)
+    plt.show()

@@ -32,13 +32,20 @@ class genStim(object):
         self.stim = (2 * amp) * np.random.random(size=self.n_samp) - amp
 
     def fade(self, fade_samples):
+        """
+        Fade genStim.stim in and out for a duration given by *fade_samples*.
+
+        :param fade_samples: length of the fade in samples (will be rounded
+        off to the nearest integer)
+        """
+        self.fade_samples = int(round(fade_samples))
         fader = np.ones(self.n_samp)
-        samp = np.arange(0, self.n_samp)
-        ramp = np.square(np.sin(0.5 * np.pi * samp / self.n_samp))
+        samp = np.arange(0, self.fade_samples)
+        ramp = np.square(np.sin(0.5 * np.pi * samp / self.fade_samples))
         # fade in
-        fader[0:self.n_samp] = ramp
+        fader[0:self.fade_samples] = ramp
         # fade out
-        fader[(len(fader) - self.n_samp):] = ramp[::-1]
+        fader[(len(fader) - self.fade_samples):] = ramp[::-1]
         # apply the fades
         self.stim = self.stim * fader
 
