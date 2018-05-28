@@ -1,6 +1,7 @@
 # Nynke Niehof, 2018
 
 from Experiment.genNoiseStim import genStim
+from Experiment.GVS import GVS
 import matplotlib.pyplot as plt
 
 
@@ -25,9 +26,32 @@ class TestGenStim(object):
         plt.title(title)
 
 
+def test_noise_signal(f_samp):
+    """
+    Generate a white noise signal and a white noise with a fade-in and fade-out.
+    Check the generated voltage with an oscilloscope.
+    """
+    gvs = GVS(max_voltage=3.0, logfile="testGenNoiseStimlog.log")
+    # white noise
+    make_stim = genStim(f_samp)
+    make_stim.noise(5.0, 3.0)
+    samples = make_stim.stim
+    gvs.write_to_channel(samples)
+
+    # white noise with fade-in/fade-out
+    make_stim.fade(f_samp * 1.0)
+    samples = make_stim.stim
+    gvs.write_to_channel(samples)
+    gvs.quit()
+
 if __name__ == "__main__":
 
     f_samp = 1e3
+
+    # generate signal and send to GVS output channel
+    test_noise_signal(f_samp)
+
+    # plot generated signals
     test_stim = TestGenStim(f_samp)
     test_stim.test_noise(5.0, 3.0)
     test_stim.test_fade(f_samp * 0.5)
