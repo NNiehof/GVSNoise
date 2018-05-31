@@ -3,7 +3,6 @@
 from __future__ import division
 
 import numpy as np
-from GVS import GVS
 
 
 class genStim(object):
@@ -16,7 +15,7 @@ class genStim(object):
 
         self.f_samp = f_samp
         self.n_samp = 0.0
-        self.stim = None
+        self.stim = np.empty(shape=(0, 0))
 
     def noise(self, duration, amp, bandwidth=(-np.inf, np.inf)):
         """
@@ -25,7 +24,7 @@ class genStim(object):
 
         :param duration: signal duration (seconds)
         :param amp: maximum signal amplitude
-        :param bandwidth: (tuple )bandwidth limits (Hz)
+        :param bandwidth: (tuple) bandwidth limits (Hz)
         :return:
         """
         self.n_samp = int(duration * self.f_samp)

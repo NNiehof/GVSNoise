@@ -1,6 +1,5 @@
 # Nynke Niehof, 2018
 
-import sys
 import nidaqmx
 from nidaqmx import constants, stream_writers
 import time
@@ -12,6 +11,10 @@ class GVS(object):
 
         self.max_voltage = abs(max_voltage)
 
+        # create a task, initialise stream writer
+        self.task = nidaqmx.Task()
+        self.writer = None
+
         # set up log file
         if not logfile:
             print "Warning: no logfile specified in call to GVS class. " \
@@ -22,10 +25,18 @@ class GVS(object):
             logging.basicConfig(filename=logfile, level=logging.DEBUG,
                                 format='%(asctime)s %(message)s')
 
+    def connect(self, physical_channel_name):
+        """
+        Establish connection with NIDAQ apparatus. A virtual output channel
+        and data stream writer are created.
+
+        :param physical_channel_name: name of output port on NIDAQ (to see
+        available channel names, open NI MAX (software included with driver
+        installation) and look under "Devices and Interfaces")
+        :return: True if connection was successful, otherwise False.
+        """
         try:
-            # create a task and virtual output channel
-            self.task = nidaqmx.Task()
-            physical_channel_name = "cDAQ1Mod1/ao0"
+            # create virtual output channel
             self.task.ao_channels.add_ao_voltage_chan(
                 physical_channel_name,
                 name_to_assign_to_channel="GVSoutput",
@@ -39,11 +50,12 @@ class GVS(object):
             )
             logging.info("GVS task and channel created")
         except nidaqmx.errors.DaqError as err:
-            logging.ERROR("DAQmx error: {0}".format(err))
-            sys.exit(1)
+            logging.error("DAQmx error: {0}".format(err))
+            return False
 
         self.task.start()
         logging.info("GVS task started")
+        return True
 
     @property
     def max_voltage(self):
@@ -61,17 +73,20 @@ class GVS(object):
         Send a current profile to the output channel.
 
         :param current_profile: Numpy array of samples
-        :return:
+        :return samps_written: number of samples successfully written
         """
         t_start = time.time()
         logging.info("{0} start GVS".format(t_start))
 
-        self.writer.write_many_sample(current_profile)
+        samps_written = self.writer.write_many_sample(current_profile)
         self.task.wait_until_done(timeout=nidaqmx.constants.WAIT_INFINITELY)
 
         t_stop = time.time()
         logging.info("{0} stop GVS".format(t_stop))
         logging.info("GVS duration = {0}".format(t_stop - t_start))
+
+        assert isinstance(samps_written, int)
+        return samps_written
 
     def quit(self):
         self.task.stop()

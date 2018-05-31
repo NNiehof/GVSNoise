@@ -31,7 +31,10 @@ def test_noise_signal(f_samp):
     Generate a white noise signal and a white noise with a fade-in and fade-out.
     Check the generated voltage with an oscilloscope.
     """
-    gvs = GVS(max_voltage=3.0, logfile="testGenNoiseStimlog.log")
+    try:
+        gvs = GVS(max_voltage=3.0, logfile="testGenNoiseStimlog.log")
+    except:
+        return
     # white noise
     make_stim = genStim(f_samp)
     make_stim.noise(5.0, 3.0)
