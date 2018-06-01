@@ -8,13 +8,14 @@ from genNoiseStim import genStim
 class GVSHandler(multiprocessing.Process):
     def __init__(self, in_queue=None, out_queue=None):
         # init superclass
-        multiprocessing.Process.__init__(self)
+        super(GVSHandler, self).__init__()
+        # multiprocessing.Process.__init__(self)
 
-        # constants
+        # TODO: pass constants as arguments
         PHYSICAL_CHANNEL_NAME = "cDAQ1Mod1/ao0"
         SAMPLING_FREQ = 1e4
 
-        # REMOVE AFTER DEBUGGING
+        # TODO: REMOVE AFTER DEBUGGING
         logfile = "testGVSHandlerLog.log"
 
         # I/O queues
@@ -30,6 +31,9 @@ class GVSHandler(multiprocessing.Process):
         connected = self.gvs.connect(PHYSICAL_CHANNEL_NAME)
         self.out_queue.put(connected)
 
+        self.
+        print("end of init")
+
     def run(self):
         """
         Extends multiprocessing.Process.run and is called when the process's
@@ -40,6 +44,7 @@ class GVSHandler(multiprocessing.Process):
         GVS stimulation. Input "STOP" to exit the method.
         """
         while True:
+            print("start of event loop")
             data = self.in_queue.get()
             if data == "STOP":
                 self.gvs.quit()
@@ -50,9 +55,12 @@ class GVSHandler(multiprocessing.Process):
                 if type(data).__name__ == "dict":
                     self._create_stimulus(options=data)
 
-                elif type(data).__name__ == "bool":
+                elif (type(data).__name__ == "bool") & (data is True):
                     self._send_stimulus()
 
+                else:
+                    # TODO: log something meaningful about invalid input parameters
+                    self.out_queue.put(False)
 
     def _create_stimulus(self, options=dict):
         """
@@ -63,6 +71,7 @@ class GVSHandler(multiprocessing.Process):
             self.makeStim.noise(options["duration"], options["amp"], **options)
         else:
             self.out_queue.put(False)
+            return
 
         if self._check_args(["fade_samples"], options):
             self.makeStim.fade(options["fade_samples"])
