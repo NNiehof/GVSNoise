@@ -12,18 +12,23 @@ from Experiment.GVSHandler import GVSHandler
 class TestHandlerCommunication(unittest.TestCase):
 
     def setUp(self):
-        self.in_queue = multiprocessing.Queue()
-        self.out_queue = multiprocessing.Queue()
+        self.param_queue = multiprocessing.Queue()
+        self.status_queue = multiprocessing.Queue()
         self.gvsProcess = multiprocessing.Process(target=GVSHandler,
-                                                  args=(self.in_queue,
-                                                        self.out_queue))
+                                                  args=(self.param_queue,
+                                                        self.status_queue))
         self.gvsProcess.start()
 
     def tearDown(self):
-        self.out_queue.put("STOP")
+        self.param_queue.put("STOP")
+        self.gvsProcess.join()
 
     def test_connection(self):
-        self.assertTrue(self.out_queue.get())
+        self.assertTrue(self.status_queue.get())
+
+    def test_create_stim(self):
+        self.param_queue.put({"duration": 5.0, "amp": 1.0})
+        self.assertTrue(self.status_queue.get())
 
 
 if __name__ == "__main__":

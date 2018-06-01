@@ -1,14 +1,21 @@
 # Nynke Niehof, 2018
 
+import multiprocessing
 from GVS import GVS
 from genNoiseStim import genStim
 
 
-class GVSHandler(object):
+class GVSHandler(multiprocessing.Process):
     def __init__(self, in_queue=None, out_queue=None):
+        # init superclass
+        multiprocessing.Process.__init__(self)
+
         # constants
         PHYSICAL_CHANNEL_NAME = "cDAQ1Mod1/ao0"
         SAMPLING_FREQ = 1e4
+
+        # REMOVE AFTER DEBUGGING
+        logfile = "testGVSHandlerLog.log"
 
         # I/O queues
         self.in_queue = in_queue
@@ -19,19 +26,23 @@ class GVSHandler(object):
         self.stimulus = self.makeStim.stim
 
         # GVS control object
-        self.gvs = GVS()
-        connected = GVS.connect(PHYSICAL_CHANNEL_NAME)
+        self.gvs = GVS(logfile=logfile)
+        connected = self.gvs.connect(PHYSICAL_CHANNEL_NAME)
         self.out_queue.put(connected)
 
     def run(self):
         """
-        Listens for queue input in a loop. Input of type *dict* is used for
-        stimulus creation, input of type *int* is used to trigger onset of
+        Extends multiprocessing.Process.run and is called when the process's
+        start() or run() method is called.
+
+        Event loop that listens for queue input. Input of type *dict* is used
+        for stimulus creation, input of type *int* is used to trigger onset of
         GVS stimulation. Input "STOP" to exit the method.
         """
         while True:
             data = self.in_queue.get()
             if data == "STOP":
+                self.gvs.quit()
                 # log something
                 break
 
