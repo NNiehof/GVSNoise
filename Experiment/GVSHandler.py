@@ -1,19 +1,15 @@
 # Nynke Niehof, 2018
 
-import multiprocessing
+from copy import deepcopy
 from GVS import GVS
 from genNoiseStim import genStim
 
 
-class GVSHandler(multiprocessing.Process):
+class GVSHandler():
     def __init__(self, in_queue=None, out_queue=None):
-        # init superclass
-        super(GVSHandler, self).__init__()
-        # multiprocessing.Process.__init__(self)
-
         # TODO: pass constants as arguments
         PHYSICAL_CHANNEL_NAME = "cDAQ1Mod1/ao0"
-        SAMPLING_FREQ = 1e4
+        SAMPLING_FREQ = 1e3
 
         # TODO: REMOVE AFTER DEBUGGING
         logfile = "testGVSHandlerLog.log"
@@ -31,8 +27,12 @@ class GVSHandler(multiprocessing.Process):
         connected = self.gvs.connect(PHYSICAL_CHANNEL_NAME)
         self.out_queue.put(connected)
 
-        self.
-        print("end of init")
+        # GVSHandler can't be a subclass of multiprocessing.Process, as the
+        # GVS object contains ctypes pointers and can't be pickled.
+        # GVSHandler's methods can't be accessed from the parent process.
+        # As a workaround, the event loop is started by calling the run method
+        # here at the end of the initialisation.
+        self.run()
 
     def run(self):
         """
@@ -44,7 +44,6 @@ class GVSHandler(multiprocessing.Process):
         GVS stimulation. Input "STOP" to exit the method.
         """
         while True:
-            print("start of event loop")
             data = self.in_queue.get()
             if data == "STOP":
                 self.gvs.quit()
@@ -53,7 +52,7 @@ class GVSHandler(multiprocessing.Process):
 
             else:
                 if type(data).__name__ == "dict":
-                    self._create_stimulus(options=data)
+                    self._create_stimulus(params=data)
 
                 elif (type(data).__name__ == "bool") & (data is True):
                     self._send_stimulus()
@@ -62,19 +61,24 @@ class GVSHandler(multiprocessing.Process):
                     # TODO: log something meaningful about invalid input parameters
                     self.out_queue.put(False)
 
-    def _create_stimulus(self, options=dict):
+    def _create_stimulus(self, params=dict):
         """
-        Create stimulus array with parameters defined in *options*
-        :param options: (dict)
+        Create stimulus array with parameters defined in *params*
+        :param params: (dict)
         """
-        if self._check_args(["duration", "amp"], options):
-            self.makeStim.noise(options["duration"], options["amp"], **options)
+        if self._check_args(["duration", "amp"], params):
+            options = deepcopy(params)
+            del options["duration"]
+            del options["amp"]
+            if options.has_key("fade_samples"):
+                del options["fade_samples"]
+            self.makeStim.noise(params["duration"], params["amp"], **options)
         else:
             self.out_queue.put(False)
             return
 
-        if self._check_args(["fade_samples"], options):
-            self.makeStim.fade(options["fade_samples"])
+        if self._check_args(["fade_samples"], params):
+            self.makeStim.fade(params["fade_samples"])
 
         self.stimulus = self.makeStim.stim
         self.out_queue.put(True)

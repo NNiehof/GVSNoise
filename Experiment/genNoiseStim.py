@@ -47,4 +47,3 @@ class genStim(object):
         fader[(len(fader) - self.fade_samples):] = ramp[::-1]
         # apply the fades
         self.stim = self.stim * fader
-

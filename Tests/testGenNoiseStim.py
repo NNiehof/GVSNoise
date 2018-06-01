@@ -33,6 +33,7 @@ def test_noise_signal(f_samp):
     """
     try:
         gvs = GVS(max_voltage=3.0, logfile="testGenNoiseStimlog.log")
+        gvs.connect(physical_channel_name="cDAQ1Mod1/ao0")
     except:
         return
     # white noise
