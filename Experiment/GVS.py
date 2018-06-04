@@ -63,8 +63,8 @@ class GVS(object):
 
     @max_voltage.setter
     def max_voltage(self, max_voltage):
-        if max_voltage > 3.0:
-            self._max_voltage = 3.0
+        if max_voltage > 1.0:
+            self._max_voltage = 1.0
         else:
             self._max_voltage = max_voltage
 
@@ -95,5 +95,5 @@ class GVS(object):
 
 
 if __name__ == "__main__":
-    gvs = GVS(max_voltage=3.0, logfile="GVSlog.log")
+    gvs = GVS(max_voltage=1.0, logfile="GVSlog.log")
     gvs.quit()

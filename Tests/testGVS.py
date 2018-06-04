@@ -39,9 +39,10 @@ def test_signal():
     Check the generated voltage with an oscilloscope.
     """
     gvs = GVS(max_voltage=3.0, logfile="testGVSlog.log")
-    samples = np.concatenate((np.zeros(500), np.ones(1000), np.zeros(500)))
-    samples = np.concatenate((samples, -samples, samples, -samples))
-    gvs.write_to_channel(samples)
+    if gvs.connect("cDAQ1Mod1/ao0"):
+        samples = np.concatenate((np.zeros(500), np.ones(1000), np.zeros(500)))
+        samples = np.concatenate((samples, -samples, samples, -samples))
+        gvs.write_to_channel(samples)
     gvs.quit()
 
 if __name__ == "__main__":

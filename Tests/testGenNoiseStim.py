@@ -1,8 +1,12 @@
 # Nynke Niehof, 2018
 
+import matplotlib.pyplot as plt
+from sys import path
+from os.path import dirname
+
+path.append(dirname(path[0]))
 from Experiment.genNoiseStim import genStim
 from Experiment.GVS import GVS
-import matplotlib.pyplot as plt
 
 
 class TestGenStim(object):
@@ -18,12 +22,13 @@ class TestGenStim(object):
         self.gen_stim.fade(fade_samps)
         self.stim_plot(self.gen_stim.stim, title="Noise with fade")
 
-    def stim_plot(self, stim, title=""):
-        plt.figure()
-        plt.plot(stim)
-        plt.xlabel("sample")
-        plt.ylabel("amplitude (mA)")
-        plt.title(title)
+
+def stim_plot(stim, title=""):
+    plt.figure()
+    plt.plot(stim)
+    plt.xlabel("sample")
+    plt.ylabel("amplitude (mA)")
+    plt.title(title)
 
 
 def test_noise_signal(f_samp):
@@ -32,31 +37,34 @@ def test_noise_signal(f_samp):
     Check the generated voltage with an oscilloscope.
     """
     try:
-        gvs = GVS(max_voltage=3.0, logfile="testGenNoiseStimlog.log")
+        gvs = GVS(max_voltage=1.0, logfile="testGenNoiseStimlog.log")
         gvs.connect(physical_channel_name="cDAQ1Mod1/ao0")
     except:
         return
     # white noise
     make_stim = genStim(f_samp)
-    make_stim.noise(5.0, 3.0)
+    make_stim.noise(40.0, 0.3)
     samples = make_stim.stim
-    gvs.write_to_channel(samples)
+    # gvs.write_to_channel(samples)
 
     # white noise with fade-in/fade-out
-    make_stim.fade(f_samp * 1.0)
-    samples = make_stim.stim
-    gvs.write_to_channel(samples)
+    make_stim.fade(f_samp * 10.0)
+    faded_samples = make_stim.stim
+    print("start galvanic stim")
+    gvs.write_to_channel(faded_samples)
+    print("end galvanic stim")
     gvs.quit()
+
+    return samples, faded_samples
 
 if __name__ == "__main__":
 
     f_samp = 1e3
 
     # generate signal and send to GVS output channel
-    test_noise_signal(f_samp)
+    stim, faded_stim = test_noise_signal(f_samp)
 
     # plot generated signals
-    test_stim = TestGenStim(f_samp)
-    test_stim.test_noise(5.0, 3.0)
-    test_stim.test_fade(f_samp * 0.5)
+    stim_plot(stim, title="white noise")
+    stim_plot(faded_stim, title="white noise with fade in/out")
     plt.show()
