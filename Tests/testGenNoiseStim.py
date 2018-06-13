@@ -43,12 +43,12 @@ def test_noise_signal(f_samp):
         return
     # white noise
     make_stim = genStim(f_samp)
-    make_stim.noise(40.0, 0.3)
+    make_stim.noise(10.0, 0.3)
     samples = make_stim.stim
     # gvs.write_to_channel(samples)
 
     # white noise with fade-in/fade-out
-    make_stim.fade(f_samp * 10.0)
+    make_stim.fade(f_samp * 3.0)
     faded_samples = make_stim.stim
     print("start galvanic stim")
     gvs.write_to_channel(faded_samples)

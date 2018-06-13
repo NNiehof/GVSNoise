@@ -1,8 +1,8 @@
 # Nynke Niehof, 2018
 
 from copy import deepcopy
-from GVS import GVS
-from genNoiseStim import genStim
+from Experiment.GVS import GVS
+from Experiment.genNoiseStim import genStim
 
 
 class GVSHandler():
@@ -36,12 +36,11 @@ class GVSHandler():
 
     def run(self):
         """
-        Extends multiprocessing.Process.run and is called when the process's
-        start() or run() method is called.
-
         Event loop that listens for queue input. Input of type *dict* is used
         for stimulus creation, input of type *int* is used to trigger onset of
         GVS stimulation. Input "STOP" to exit the method.
+        This event loop is automatically started after a GVSHandler object
+        is initialised.
         """
         while True:
             data = self.in_queue.get()
@@ -70,7 +69,7 @@ class GVSHandler():
             options = deepcopy(params)
             del options["duration"]
             del options["amp"]
-            if options.has_key("fade_samples"):
+            if "fade_samples" in options:
                 del options["fade_samples"]
             self.makeStim.noise(params["duration"], params["amp"], **options)
         else:

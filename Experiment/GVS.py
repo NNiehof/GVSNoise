@@ -17,13 +17,13 @@ class GVS(object):
 
         # set up log file
         if not logfile:
-            print "Warning: no logfile specified in call to GVS class. " \
-                  "All messages will be displayed in console instead."
+            print("Warning: no logfile specified in call to GVS class. ",
+                  "All messages will be displayed in console instead.")
             logging.basicConfig(level=logging.DEBUG,
-                                format='%(asctime)s %(message)s')
+                                format="%(asctime)s %(message)s")
         else:
             logging.basicConfig(filename=logfile, level=logging.DEBUG,
-                                format='%(asctime)s %(message)s')
+                                format="%(asctime)s %(message)s")
 
     def connect(self, physical_channel_name):
         """
