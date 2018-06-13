@@ -3,10 +3,11 @@
 from copy import deepcopy
 from Experiment.GVS import GVS
 from Experiment.genNoiseStim import genStim
+from Experiment.loggingConfig import *
 
 
 class GVSHandler():
-    def __init__(self, in_queue=None, out_queue=None):
+    def __init__(self, in_queue, out_queue, logging_queue):
         # TODO: pass constants as arguments
         PHYSICAL_CHANNEL_NAME = "cDAQ1Mod1/ao0"
         SAMPLING_FREQ = 1e3
@@ -17,6 +18,7 @@ class GVSHandler():
         # I/O queues
         self.in_queue = in_queue
         self.out_queue = out_queue
+        self.logging_queue = logging_queue
 
         # stimulus generation
         self.makeStim = genStim(f_samp=SAMPLING_FREQ)
@@ -26,6 +28,9 @@ class GVSHandler():
         self.gvs = GVS(logfile=logfile)
         connected = self.gvs.connect(PHYSICAL_CHANNEL_NAME)
         self.out_queue.put(connected)
+
+        # set up logger
+
 
         # GVSHandler can't be a subclass of multiprocessing.Process, as the
         # GVS object contains ctypes pointers and can't be pickled.
