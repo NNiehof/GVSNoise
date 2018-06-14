@@ -8,19 +8,22 @@ import traceback
 
 class Listener(threading.Thread):
 
-    def __init__(self, queue, formatter, default_logging_level):
+    def __init__(self, queue, formatter, default_logging_level, log_file):
         threading.Thread.__init__(self)
         self.queue = queue
         self.formatter = formatter
         self.default_level = default_logging_level
         self.root_logger = None
+        self.log_file = log_file
 
     def _listener_config(self):
         self.root_logger = logging.getLogger()
-        handler = logging.StreamHandler() # specify log file name here
+        # handler = logging.FileHandler(self.log_file)
+        handler = logging.StreamHandler()
         handler.setFormatter(self.formatter)
         self.root_logger.addHandler(handler)
         self.root_logger.setLevel(self.default_level)
+        self.root_logger.log(logging.WARNING, "listener says hi")
 
     def run(self):
         self._listener_config()
@@ -47,10 +50,3 @@ class Worker:
         handler.setFormatter(formatter)
         self.logger.addHandler(handler)
         self.logger.setLevel(logging_level)
-        print("worker running")
-
-
-
-
-
-
