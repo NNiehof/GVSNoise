@@ -4,10 +4,11 @@ import nidaqmx
 from nidaqmx import constants, stream_writers
 import time
 import logging
+from Experiment.loggingConfig import Worker, formatter, default_logging_level
 
 
 class GVS(object):
-    def __init__(self, max_voltage=3.0, logfile=None):
+    def __init__(self, max_voltage=3.0, logging_queue=None):
 
         self.max_voltage = abs(max_voltage)
 
@@ -15,15 +16,15 @@ class GVS(object):
         self.task = nidaqmx.Task()
         self.writer = None
 
-        # set up log file
-        if not logfile:
-            print("Warning: no logfile specified in call to GVS class. ",
-                  "All messages will be displayed in console instead.")
+        # set up logger
+        if logging_queue is not None:
+            worker = Worker(logging_queue, formatter, default_logging_level,
+                            "GVS")
+            self.logger = worker.logger
+        else:
             logging.basicConfig(level=logging.DEBUG,
                                 format="%(asctime)s %(message)s")
-        else:
-            logging.basicConfig(filename=logfile, level=logging.DEBUG,
-                                format="%(asctime)s %(message)s")
+            self.logger = logging.getLogger()
 
     def connect(self, physical_channel_name):
         """
@@ -50,11 +51,11 @@ class GVS(object):
             )
             logging.info("GVS task and channel created")
         except nidaqmx.errors.DaqError as err:
-            logging.error("DAQmx error: {0}".format(err))
+            self.logger.error("DAQmx error: {0}".format(err))
             return False
 
         self.task.start()
-        logging.info("GVS task started")
+        self.logger.info("GVS task started")
         return True
 
     @property
@@ -76,14 +77,14 @@ class GVS(object):
         :return samps_written: number of samples successfully written
         """
         t_start = time.time()
-        logging.info("{0} start GVS".format(t_start))
+        self.logger.info("{0} start GVS".format(t_start))
 
         samps_written = self.writer.write_many_sample(current_profile)
         self.task.wait_until_done(timeout=nidaqmx.constants.WAIT_INFINITELY)
 
         t_stop = time.time()
-        logging.info("{0} stop GVS".format(t_stop))
-        logging.info("GVS duration = {0}".format(t_stop - t_start))
+        self.logger.info("{0} stop GVS".format(t_stop))
+        self.logger.info("GVS duration = {0}".format(t_stop - t_start))
 
         assert isinstance(samps_written, int)
         return samps_written
@@ -91,9 +92,9 @@ class GVS(object):
     def quit(self):
         self.task.stop()
         self.task.close()
-        logging.info("GVS task closed")
+        self.logger.info("GVS task closed")
 
 
 if __name__ == "__main__":
-    gvs = GVS(max_voltage=1.0, logfile="GVSlog.log")
+    gvs = GVS(max_voltage=1.0)
     gvs.quit()

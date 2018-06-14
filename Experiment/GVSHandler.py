@@ -3,7 +3,7 @@
 from copy import deepcopy
 from Experiment.GVS import GVS
 from Experiment.genNoiseStim import genStim
-from Experiment.loggingConfig import *
+from Experiment.loggingConfig import Worker, formatter, default_logging_level
 
 
 class GVSHandler():
@@ -25,12 +25,15 @@ class GVSHandler():
         self.stimulus = self.makeStim.stim
 
         # GVS control object
-        self.gvs = GVS(logfile=logfile)
+        self.gvs = GVS(logging_queue=logging_queue)
         connected = self.gvs.connect(PHYSICAL_CHANNEL_NAME)
         self.out_queue.put(connected)
 
         # set up logger
-
+        worker = Worker(logging_queue, formatter, default_logging_level,
+                        "GVSHandler")
+        logger = worker.logger
+        logger.info("GVS handler initialised")
 
         # GVSHandler can't be a subclass of multiprocessing.Process, as the
         # GVS object contains ctypes pointers and can't be pickled.

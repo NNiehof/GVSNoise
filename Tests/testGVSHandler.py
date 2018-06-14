@@ -14,9 +14,12 @@ class TestHandlerCommunication(unittest.TestCase):
     def setUp(self):
         self.param_queue = multiprocessing.Queue()
         self.status_queue = multiprocessing.Queue()
+        queue_manager = multiprocessing.Manager()
+        self.log_queue = queue_manager.Queue()
         self.gvsProcess = multiprocessing.Process(target=GVSHandler,
                                                   args=(self.param_queue,
-                                                        self.status_queue))
+                                                        self.status_queue,
+                                                        self.log_queue))
         self.gvsProcess.start()
         self.connected = self.status_queue.get()
 

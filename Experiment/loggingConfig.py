@@ -5,6 +5,10 @@ import sys
 import traceback
 
 
+formatter = logging.Formatter("%(asctime)s %(processName)s %(thread)d %(message)s")
+default_logging_level = logging.DEBUG
+
+
 class Listener(threading.Thread):
 
     def __init__(self, queue, formatter, default_logging_level, log_file):
@@ -48,7 +52,8 @@ class Worker:
     def __init__(self, queue, formatter, logging_level, logger_name):
         self.queue = queue
         self.logger = logging.getLogger(logger_name)
+        self.default_level = logging_level
         handler = logging.handlers.QueueHandler(self.queue)
         handler.setFormatter(formatter)
         self.logger.addHandler(handler)
-        self.logger.setLevel(logging_level)
+        self.logger.setLevel(self.default_level)

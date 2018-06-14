@@ -6,11 +6,6 @@ path.append(dirname(path[0]))
 from Experiment.loggingConfig import *
 
 
-formatter = logging.Formatter("%(asctime)s %(processName)s %(thread)d %(message)s")
-default_logging_level = logging.DEBUG
-log_file = "test_log.log"
-
-
 def test_worker_process(log_queue, formatter, logging_level, number, logger_name=""):
     worker = Worker(log_queue, formatter, logging_level, logger_name)
     logger = worker.logger
@@ -20,6 +15,7 @@ def test_worker_process(log_queue, formatter, logging_level, number, logger_name
 
 if __name__ == "__main__":
     # set up multiprocessing-aware logging
+    log_file = "test_log.log"
 
     # shared queue for logging from subprocesses
     queue_manager = multiprocessing.Manager()
