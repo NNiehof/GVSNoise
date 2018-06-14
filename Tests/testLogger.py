@@ -1,6 +1,4 @@
 import multiprocessing
-import logging
-import time
 from sys import path
 from os.path import dirname
 
@@ -8,26 +6,42 @@ path.append(dirname(path[0]))
 from Experiment.loggingConfig import *
 
 
-formatter = logging.Formatter("%(asctime)s %(processName)s %(message)s")
+formatter = logging.Formatter("%(asctime)s %(processName)s %(thread)d %(message)s")
 default_logging_level = logging.DEBUG
 log_file = "test_log.log"
+
+
+def test_worker_process(log_queue, formatter, logging_level, number, logger_name=""):
+    worker = Worker(log_queue, formatter, logging_level, logger_name)
+    logger = worker.logger
+    message = "test message from worker {}".format(number)
+    logger.log(logging.INFO, message)
+
 
 if __name__ == "__main__":
     # set up multiprocessing-aware logging
 
     # shared queue for logging from subprocesses
     queue_manager = multiprocessing.Manager()
-    queue = queue_manager.Queue()
+    log_queue = queue_manager.Queue()
 
     # set up listener thread that does the logging
-    listener = Listener(queue, formatter, default_logging_level, log_file)
+    listener = Listener(log_queue, formatter, default_logging_level, log_file)
     listener.start()
 
-    worker = Worker(queue, formatter, default_logging_level, "worker-log")
-    test_logger = worker.logger
-    test_logger.log(logging.WARNING, "test message from worker")
-    time.sleep(1)
-    test_logger.log(None)
+    workers = []
+    for worker_number in range(4):
+        worker = multiprocessing.Process(target=test_worker_process,
+                                         args=(log_queue, formatter,
+                                               default_logging_level,
+                                               worker_number,
+                                               "worker-log"))
+        worker.daemon = True
+        workers.append(worker)
+        worker.start()
+
+    for w in workers:
+        w.join()
+
+    log_queue.put(None)
     listener.join()
-
-

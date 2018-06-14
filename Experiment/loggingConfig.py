@@ -1,6 +1,5 @@
 import logging
 import logging.handlers
-import multiprocessing
 import threading
 import sys
 import traceback
@@ -11,6 +10,7 @@ class Listener(threading.Thread):
     def __init__(self, queue, formatter, default_logging_level, log_file):
         threading.Thread.__init__(self)
         self.queue = queue
+        self.daemon = True
         self.formatter = formatter
         self.default_level = default_logging_level
         self.root_logger = None
@@ -18,16 +18,18 @@ class Listener(threading.Thread):
 
     def _listener_config(self):
         self.root_logger = logging.getLogger()
-        # handler = logging.FileHandler(self.log_file)
+        # logging to file
+        file_handler = logging.FileHandler(self.log_file)
+        file_handler.setFormatter(self.formatter)
+        self.root_logger.addHandler(file_handler)
+        # logging to console
         handler = logging.StreamHandler()
         handler.setFormatter(self.formatter)
         self.root_logger.addHandler(handler)
         self.root_logger.setLevel(self.default_level)
-        self.root_logger.log(logging.WARNING, "listener says hi")
 
     def run(self):
         self._listener_config()
-        print("listener running")
 
         while True:
             try:
@@ -35,7 +37,7 @@ class Listener(threading.Thread):
                 if record is None:
                     break
                 logger = logging.getLogger(record.name)
-                logger.handle(record)
+                logger.callHandlers(record)
             except Exception:
                 print("Error in logging Listener: ", file=sys.stderr)
                 traceback.print_exc(file=sys.stderr)
