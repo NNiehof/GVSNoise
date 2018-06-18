@@ -1,5 +1,6 @@
 import multiprocessing
 import logging
+import json
 import os
 import time
 from collections import OrderedDict
@@ -12,47 +13,107 @@ from Experiment.loggingConfig import Listener
 class Experiment:
 
     def __init__(self):
+        self.sj = 1 # TODO: change to read out
         self.win = None
         self.frame_duration = 0
-        self.mouse = None
+        self.paradigm = "GVSNoise"
+        self.condition = ""
+        self.stimuli = None
+        self.triggers = None
+
+        # root directory
+        abs_path = os.path.abspath("__file__")
+        self.root_dir = os.path.dirname(os.path.dirname(abs_path))
+        self.settings_dir = "{}/Settings".format(self.root_dir)
+
+    def setup(self):
+        # display and window settings
+        self._display_setup()
+
+        # set up logging
+        make_log = SaveData(self.sj, self.paradigm, self.condition,
+                            file_type="log", sj_leading_zeros=3,
+                            root_dir=self.root_dir)
+        log_name = make_log.datafile
+        self._logger_setup(log_name)
+
+        # create stimuli
+        stim = Stimuli(self.win, self.settings_dir)
+        self.stimuli, self.triggers = stim.create()
 
     def _display_setup(self):
         """
         Window and display settings
         """
-        #TODO: read settings in from file
-        self.win = visual.Window(winType='pygame', units='pix', fullscr=False)
+        display_file = "{}/display.json".format(self.settings_dir)
+        with open(display_file) as json_file:
+            win_settings = json.load(json_file)
+        self.win = visual.Window(**win_settings)
         framerate = self.win.fps()
         self.frame_duration = 1.0/framerate
         self.mouse = event.Mouse(visible=False, win=self.win)
 
-    def logger_setup(self):
+    def _logger_setup(self, log_file):
+        """
+        Establish a connection for parallel processes to log to s single file.
+
+        :param log_file: str
+        """
+        # settings
+        self.log_formatter = logging.Formatter("%(asctime)s %(processName)s %(thread)d %(message)s")
+        self.default_logging_level = logging.DEBUG
+
         # set up listener thread for central logging from all processes
         queue_manager = multiprocessing.Manager()
         self.log_queue = queue_manager.Queue()
-        log_listener = Listener(log_queue, formatter, default_logging_level, log_file)
-        log_listener.start()
+        self.log_listener = Listener(self.log_queue, self.log_formatter,
+                                self.default_logging_level, log_file)
+        self.log_listener.start()
 
         # establish connection with galvanic stimulator
         self.param_queue = multiprocessing.Queue()
         self.status_queue = multiprocessing.Queue()
-        self.gvsProcess = multiprocessing.Process(target=GVSHandler,
-                                                  args=(self.param_queue,
-                                                        self.status_queue,
-                                                        self.log_queue))
+        self.gvs_process = multiprocessing.Process(target=GVSHandler,
+                                                   args=(self.param_queue,
+                                                         self.status_queue,
+                                                         self.log_queue))
+
+    def _quit(self):
+        # close psychopy
+        self.win.close()
+        core.quit()
+
+        # stop the logging workers and listeners
+        self.gvs_process.join()
+        self.log_queue.put(None)
+        self.log_listener.join()
+
+    def run(self):
+        # TODO: implement experimental states
+        frame = 0
+        while True:
+            for stim in self.stimuli:
+                    if self.triggers[stim]:
+                        self.stimuli[stim].draw()
+            self.win.flip()
+            frame += 1
+            if frame > 180:
+                break
 
 
 
 class SaveData:
 
-    def __init__(self, sj, paradigm, condition,
+    def __init__(self, sj, paradigm, condition, file_type="data",
                  sj_leading_zeros=0, root_dir=None):
         """
-        Create a data folder and .txt file, write data to file.
+        Create a data folder and .txt or .log file, write data to file.
 
         :param sj: int, subject identification number
         :param paradigm: string
         :param condition: string
+        :param file_type: type of file to create, either "data" (default)
+        or "log" to make a log file.
         :param sj_leading_zeros: int (optional), add leading zeros to subject
         number until the length of sj_leading_zeros is reached.
         Example:
@@ -61,8 +122,11 @@ class SaveData:
         """
         # set up data folder
         if root_dir is None:
-            root_dir = os.path.dirname(os.path.abspath("__file__"))
-        datafolder = "{}/Data".format(root_dir)
+            abs_path = os.path.abspath("__file__")
+            root_dir = os.path.dirname(os.path.dirname(abs_path))
+        # set up subdirectory "Data" or "Log"
+        assert(file_type in ["data", "log"])
+        datafolder = "{}/{}".format(root_dir, file_type.capitalize())
         if not os.path.isdir(datafolder):
             os.mkdir(datafolder)
 
@@ -77,8 +141,14 @@ class SaveData:
         if not os.path.isdir(subfolder):
             os.mkdir(subfolder)
         timestr = time.strftime("%Y%m%d_%H%M%S")
-        self.datafile = "{}/{}_{}_{}_{}.txt".format(subfolder, sj_number,
-                                                    paradigm, condition, timestr)
+        if file_type == "data":
+            self.datafile = "{}/{}_{}_{}_{}.txt".format(subfolder, sj_number,
+                                                        paradigm, condition,
+                                                        timestr)
+        else:
+            self.datafile = "{}/{}_{}_{}_{}.log".format(subfolder, sj_number,
+                                                        paradigm, condition,
+                                                        timestr)
 
     def write_header(self, header):
         self.write(header)
@@ -90,7 +160,7 @@ class SaveData:
 
 class Stimuli:
 
-    def __init__(self, window):
+    def __init__(self, window, settings_dir):
         """
         Create visual stimuli with PsychoPy.
 
@@ -98,34 +168,38 @@ class Stimuli:
         """
         self.stimuli = OrderedDict()
         self.triggers = {}
+
+        self.settings_dir = settings_dir
         self.win = window
 
     def create(self):
-        #TODO: read stimulus params from file instead of hard-coding
+        # read stimulus settings from json file
+        stim_file = "{}/stimuli.json".format(self.settings_dir)
+        with open(stim_file) as json_stim:
+            stim_config = json.load(json_stim)
 
-        self.stimuli["rodStim"] = visual.Line(win=self.win, start=(0, -100),
-                                              end=(0, 100), lineWidth=5,
-                                              lineColor=(-0.8, -0.8, -0.8))
+        # cycle through stimuli
+        for key, value in stim_config.items():
+            # get the correct stimulus class to call from the visual module
+            stim_class = getattr(visual, value.get("stimType"))
+            stim_settings = value.get("settings")
+            self.stimuli[key] = stim_class(window, **stim_settings)
+            # create stimulus trigger
+            self.triggers[key] = False
 
-        self.stimuli['squareFrame'] = visual.Rect(win=self.win, width=300.0,
-                                                  height=300.0, pos=(0, 0),
-                                                  lineWidth=5,
-                                                  lineColor=(-0.8, -0.8, -0.8),
-                                                  fillColor=None, ori=0.0,
-                                                  units="pix")
-
-        # stimulus triggers
-        for stim in self.stimuli:
-            self.triggers[stim] = False
+        return self.stimuli, self.triggers
 
 
 if __name__ == "__main__":
-    # set up logging from multiple processes
+    # # set up logging from multiple processes
+    #
+    # # shared queue
+    # queue_manager = multiprocessing.Manager()
+    # queue = queue_manager.Queue()
+    #
+    # logger = logging.getLogger()
+    # handler = logging.StreamHandler()
 
-    # shared queue
-    queue_manager = multiprocessing.Manager()
-    queue = queue_manager.Queue()
-
-    logger = logging.getLogger()
-    handler = logging.StreamHandler()
-
+    exp = Experiment()
+    exp.setup()
+    exp.run()
