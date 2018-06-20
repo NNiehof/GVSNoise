@@ -8,6 +8,7 @@ from psychopy import visual, core, event
 from Experiment.GVSHandler import GVSHandler
 from Experiment.loggingConfig import Listener, Worker
 from Experiment.stateMachine import StateMachine
+from Experiment.randomStimulus import RandStim
 #TODO: fix the module so that the files don't have to be imported separately
 
 
@@ -15,6 +16,8 @@ class Experiment:
 
     def __init__(self):
         self.sj = 1 # TODO: change to read out
+        self.break_after_trials = 100
+
         self.win = None
         self.frame_duration = 0
         self.paradigm = "GVSNoise"
@@ -28,6 +31,11 @@ class Experiment:
         abs_path = os.path.abspath("__file__")
         self.root_dir = os.path.dirname(os.path.dirname(abs_path))
         self.settings_dir = "{}/Settings".format(self.root_dir)
+
+        # conditions
+        # TODO: read in from file
+        self.frames = [-22.5, 0, 22.5]
+        self.stimulus_range = range(-15, 15, 5)
 
     def setup(self):
         # display and window settings
@@ -54,6 +62,12 @@ class Experiment:
         # data save file
         self.save_data = SaveData(self.sj, self.paradigm, self.condition,
                                   sj_leading_zeros=3, root_dir=self.root_dir)
+
+        # trial list
+        self.trials = RandStim(self.stimulus_range, self.frames)
+        self.break_trials = range(self.break_after_trials,
+                                  len(self.trials.triallist),
+                                  self.break_after_trials)
 
     def _display_setup(self):
         """
@@ -107,6 +121,7 @@ class Experiment:
         self.fsm.add_state("pre_probe", self.pre_probe_state)
         self.fsm.add_state("probe", self.probe_state)
         self.fsm.add_state("response", self.response_state)
+        self.fsm.add_state("pause", self.pause_state)
         # define end and start state
         self.fsm.add_state("end", self.end_state, end_state=True)
         self.fsm.set_start("start")
@@ -156,6 +171,39 @@ class Experiment:
         time.sleep(8)
         self.quit()
 
+
+    def start_state(self):
+        # triggers for timers
+        self.timer_triggers = {}
+        self.statenames = ["start", "init_trial", "iti", "pre_probe", "probe",
+                           "response"]
+        for state in self.statenames:
+            self.timer_triggers[state] = True
+
+        self.start_time = time.time()
+        self.trial_count = 0
+        self.new_state = "init_trial"
+        self.go_next = True
+        return self.new_state, self.go_next
+
+    def init_trial_state(self):
+        self.data = {}
+        self.data["trialNr"] = self.trial_count
+        self.trial_count += 1
+
+        # check whether this is a break trial
+        if self.trial_count in self.break_trials:
+            # add one to count because this trial doesn't need to be repeated
+            self.trial_count += 1
+            self.new_state = "pause"
+            self.go_next = True
+            return self.new_state, self.go_next
+
+        # trial settings
+        trial = self.trials.get_stimulus()
+        self.line_angle = trial[0]
+        self.frame_angle = trial[1]
+        self.data["trial_onset"]
 
 
 class SaveData:
