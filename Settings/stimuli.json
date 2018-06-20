@@ -1,0 +1,41 @@
+{
+	"rodStim": {
+		"stimType": "Line",
+		"settings": {
+			"start": [
+				0,
+				-100
+			],
+			"end": [
+				0,
+				100
+			],
+			"lineWidth": 5,
+			"lineColor": [
+				-0.8,
+				-0.8,
+				-0.8
+			]
+		}
+	},
+	"squareFrame": {
+		"stimType": "Rect",
+		"settings": {
+			"width": 300.0,
+			"height": 300.0,
+			"pos": [
+				0,
+				0
+			],
+			"lineWidth": 5,
+			"lineColor": [
+				-0.8,
+				-0.8,
+				-0.8
+			],
+			"fillColor": null,
+			"ori": 0.0,
+			"units": "pix"
+		}
+	}
+}
