@@ -6,7 +6,7 @@ import time
 from collections import OrderedDict
 from psychopy import visual, core, event
 from Experiment.GVSHandler import GVSHandler
-from Experiment.loggingConfig import Listener
+from Experiment.loggingConfig import Listener, Worker
 #TODO: fix the module so that the files don't have to be imported separately
 
 
@@ -20,6 +20,7 @@ class Experiment:
         self.condition = ""
         self.stimuli = None
         self.triggers = None
+        self.logger_main = None
 
         # root directory
         abs_path = os.path.abspath("__file__")
@@ -30,12 +31,18 @@ class Experiment:
         # display and window settings
         self._display_setup()
 
-        # set up logging
+        # set up logging folder, file, and processes
         make_log = SaveData(self.sj, self.paradigm, self.condition,
                             file_type="log", sj_leading_zeros=3,
                             root_dir=self.root_dir)
         log_name = make_log.datafile
         self._logger_setup(log_name)
+        main_worker = Worker(self.log_queue, self.log_formatter,
+                                  self.default_logging_level, "main")
+        self.logger_main = main_worker.logger
+
+        # start process that controls the GVS
+        self._gvs_setup()
 
         # create stimuli
         stim = Stimuli(self.win, self.settings_dir)
@@ -70,23 +77,35 @@ class Experiment:
                                 self.default_logging_level, log_file)
         self.log_listener.start()
 
-        # establish connection with galvanic stimulator
+    def _gvs_setup(self):
+        """
+        Establish connection with galvanic stimulator
+        """
         self.param_queue = multiprocessing.Queue()
         self.status_queue = multiprocessing.Queue()
         self.gvs_process = multiprocessing.Process(target=GVSHandler,
                                                    args=(self.param_queue,
                                                          self.status_queue,
                                                          self.log_queue))
+        self.gvs_process.start()
 
     def _quit(self):
-        # close psychopy
-        self.win.close()
-        core.quit()
-
-        # stop the logging workers and listeners
+        # send the stop signal to the GVS handler
+        self.param_queue.put("STOP")
+        # wait for the GVS process to quit
+        while True:
+            wait_gvs_quit = self.status_queue.get()
+            if wait_gvs_quit == "GVS quit":
+                break
+        # stop GVS and logging processes
         self.gvs_process.join()
         self.log_queue.put(None)
+        time.sleep(5)
         self.log_listener.join()
+
+        # close psychopy window and the program
+        self.win.close()
+        core.quit()
 
     def run(self):
         # TODO: implement experimental states
@@ -99,6 +118,8 @@ class Experiment:
             frame += 1
             if frame > 180:
                 break
+        time.sleep(8)
+        self._quit()
 
 
 
@@ -183,7 +204,7 @@ class Stimuli:
             # get the correct stimulus class to call from the visual module
             stim_class = getattr(visual, value.get("stimType"))
             stim_settings = value.get("settings")
-            self.stimuli[key] = stim_class(window, **stim_settings)
+            self.stimuli[key] = stim_class(self.win, **stim_settings)
             # create stimulus trigger
             self.triggers[key] = False
 
