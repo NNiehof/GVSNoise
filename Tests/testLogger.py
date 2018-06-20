@@ -32,7 +32,6 @@ if __name__ == "__main__":
                                                default_logging_level,
                                                worker_number,
                                                "worker-log"))
-        worker.daemon = True
         workers.append(worker)
         worker.start()
 

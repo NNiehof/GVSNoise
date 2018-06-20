@@ -93,7 +93,7 @@ class GVS(object):
         self.task.stop()
         self.task.close()
         self.logger.info("GVS task closed")
-
+        return True
 
 if __name__ == "__main__":
     gvs = GVS(max_voltage=1.0)

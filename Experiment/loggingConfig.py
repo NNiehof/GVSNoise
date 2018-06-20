@@ -14,7 +14,6 @@ class Listener(threading.Thread):
     def __init__(self, queue, formatter, default_logging_level, log_file):
         threading.Thread.__init__(self)
         self.queue = queue
-        self.daemon = True
         self.formatter = formatter
         self.default_level = default_logging_level
         self.root_logger = None
@@ -39,6 +38,7 @@ class Listener(threading.Thread):
             try:
                 record = self.queue.get()
                 if record is None:
+                    self.root_logger.info("quitting")
                     break
                 logger = logging.getLogger(record.name)
                 logger.callHandlers(record)
