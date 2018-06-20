@@ -12,9 +12,6 @@ class GVSHandler():
         PHYSICAL_CHANNEL_NAME = "cDAQ1Mod1/ao0"
         SAMPLING_FREQ = 1e3
 
-        # TODO: REMOVE AFTER DEBUGGING
-        logfile = "testGVSHandlerLog.log"
-
         # I/O queues
         self.param_queue = param_queue
         self.status_queue = status_queue
@@ -24,16 +21,20 @@ class GVSHandler():
         self.makeStim = genStim(f_samp=SAMPLING_FREQ)
         self.stimulus = self.makeStim.stim
 
-        # GVS control object
-        self.gvs = GVS(logging_queue=logging_queue)
-        connected = self.gvs.connect(PHYSICAL_CHANNEL_NAME)
-        self.status_queue.put(connected)
-
         # set up logger
         worker = Worker(logging_queue, formatter, default_logging_level,
                         "GVSHandler")
-        logger = worker.logger
-        logger.info("GVS handler initialisation complete")
+        self.logger = worker.logger
+
+        # GVS control object
+        self.gvs = GVS(logging_queue=logging_queue)
+        connected = self.gvs.connect(PHYSICAL_CHANNEL_NAME)
+        if connected:
+            self.logger.info("NIDAQ connection established")
+            self.status_queue.put({"connected": True})
+        else:
+            self.logger.info("NIDAQ connection failed")
+            self.status_queue.put({"connected": False})
 
         # GVSHandler can't be a subclass of multiprocessing.Process, as the
         # GVS object contains ctypes pointers and can't be pickled.
@@ -55,9 +56,9 @@ class GVSHandler():
             if data == "STOP":
                 quitted = self.gvs.quit()
                 if quitted:
-                    self.status_queue.put("GVS quit")
+                    self.status_queue.put({"quit": True})
                 else:
-                    self.status_queue.put("quitting GVS failed")
+                    self.status_queue.put({"quit": False})
                 break
 
             else:
@@ -68,8 +69,11 @@ class GVSHandler():
                     self._send_stimulus()
 
                 else:
-                    # TODO: log something meaningful about invalid input parameters
-                    self.status_queue.put(False)
+                    self.logger.error("Incorrect input to GVSHandler parameter"
+                                      "queue. Input must be a dict with"
+                                      "parameters specified in GVS.py, a"
+                                      "boolean, or a string STOP to quit.")
+                    self.status_queue.put({"params_correct": False})
 
     def _create_stimulus(self, params=dict):
         """
@@ -83,15 +87,16 @@ class GVSHandler():
             if "fade_samples" in options:
                 del options["fade_samples"]
             self.makeStim.noise(params["duration"], params["amp"], **options)
+            self.status_queue.put({"params_correct": True})
         else:
-            self.status_queue.put(False)
+            self.status_queue.put({"params_correct": False})
             return
 
         if self._check_args(["fade_samples"], params):
             self.makeStim.fade(params["fade_samples"])
 
         self.stimulus = self.makeStim.stim
-        self.status_queue.put(True)
+        self.status_queue.put({"stim_created": True})
 
     def _send_stimulus(self):
         """

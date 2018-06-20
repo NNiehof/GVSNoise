@@ -1,6 +1,6 @@
 import logging
+import multiprocessing
 import logging.handlers
-import threading
 import sys
 import traceback
 
@@ -9,10 +9,10 @@ formatter = logging.Formatter("%(asctime)s %(processName)s %(thread)d %(message)
 default_logging_level = logging.DEBUG
 
 
-class Listener(threading.Thread):
+class Listener(multiprocessing.Process):
 
     def __init__(self, queue, formatter, default_logging_level, log_file):
-        threading.Thread.__init__(self)
+        multiprocessing.Process.__init__(self)
         self.queue = queue
         self.formatter = formatter
         self.default_level = default_logging_level

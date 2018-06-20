@@ -43,6 +43,7 @@ class Experiment:
 
         # start process that controls the GVS
         self._gvs_setup()
+        self._check_gvs_status("connected")
 
         # create stimuli
         stim = Stimuli(self.win, self.settings_dir)
@@ -89,13 +90,25 @@ class Experiment:
                                                          self.log_queue))
         self.gvs_process.start()
 
+    def _check_gvs_status(self, key):
+        """
+        Check the status of *key* on the status queue. Returns a boolean
+        for the status. Note: this is a blocking process.
+        :param key: str
+        :return: bool
+        """
+        while True:
+            status = self.status_queue.get()
+            if key in status:
+                return status[key]
+
+
     def _quit(self):
         # send the stop signal to the GVS handler
         self.param_queue.put("STOP")
         # wait for the GVS process to quit
         while True:
-            wait_gvs_quit = self.status_queue.get()
-            if wait_gvs_quit == "GVS quit":
+            if self._check_gvs_status("quit"):
                 break
         # stop GVS and logging processes
         self.gvs_process.join()
