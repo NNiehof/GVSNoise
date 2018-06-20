@@ -38,7 +38,7 @@ class Listener(multiprocessing.Process):
             try:
                 record = self.queue.get()
                 if record is None:
-                    self.root_logger.info("quitting")
+                    self.root_logger.info("closing logging listener")
                     break
                 logger = logging.getLogger(record.name)
                 logger.callHandlers(record)

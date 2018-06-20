@@ -7,6 +7,7 @@ from collections import OrderedDict
 from psychopy import visual, core, event
 from Experiment.GVSHandler import GVSHandler
 from Experiment.loggingConfig import Listener, Worker
+from Experiment.stateMachine import StateMachine
 #TODO: fix the module so that the files don't have to be imported separately
 
 
@@ -21,6 +22,7 @@ class Experiment:
         self.stimuli = None
         self.triggers = None
         self.logger_main = None
+        self.save_data = None
 
         # root directory
         abs_path = os.path.abspath("__file__")
@@ -41,13 +43,17 @@ class Experiment:
                                   self.default_logging_level, "main")
         self.logger_main = main_worker.logger
 
-        # start process that controls the GVS
+        # start process that controls the GVS, wait for connection message
         self._gvs_setup()
         self._check_gvs_status("connected")
 
         # create stimuli
         stim = Stimuli(self.win, self.settings_dir)
         self.stimuli, self.triggers = stim.create()
+
+        # data save file
+        self.save_data = SaveData(self.sj, self.paradigm, self.condition,
+                                  sj_leading_zeros=3, root_dir=self.root_dir)
 
     def _display_setup(self):
         """
@@ -75,7 +81,7 @@ class Experiment:
         queue_manager = multiprocessing.Manager()
         self.log_queue = queue_manager.Queue()
         self.log_listener = Listener(self.log_queue, self.log_formatter,
-                                self.default_logging_level, log_file)
+                                     self.default_logging_level, log_file)
         self.log_listener.start()
 
     def _gvs_setup(self):
@@ -90,6 +96,23 @@ class Experiment:
                                                          self.log_queue))
         self.gvs_process.start()
 
+    def _state_machine_setup(self):
+        """
+        Initiate finite state machine to cycle through the experiment stages.
+        """
+        self.fsm = StateMachine()
+        self.fsm.add_state("start", self.start_state)
+        self.fsm.add_state("init_trial", self.init_trial_state)
+        self.fsm.add_state("iti", self.iti_state)
+        self.fsm.add_state("pre_probe", self.pre_probe_state)
+        self.fsm.add_state("probe", self.probe_state)
+        self.fsm.add_state("response", self.response_state)
+        # define end and start state
+        self.fsm.add_state("end", self.end_state, end_state=True)
+        self.fsm.set_start("start")
+        self.go_next = False
+
+
     def _check_gvs_status(self, key):
         """
         Check the status of *key* on the status queue. Returns a boolean
@@ -102,9 +125,9 @@ class Experiment:
             if key in status:
                 return status[key]
 
-
-    def _quit(self):
+    def quit(self):
         # send the stop signal to the GVS handler
+        self.logger_main.info("quitting")
         self.param_queue.put("STOP")
         # wait for the GVS process to quit
         while True:
@@ -113,7 +136,6 @@ class Experiment:
         # stop GVS and logging processes
         self.gvs_process.join()
         self.log_queue.put(None)
-        time.sleep(5)
         self.log_listener.join()
 
         # close psychopy window and the program
@@ -132,7 +154,7 @@ class Experiment:
             if frame > 180:
                 break
         time.sleep(8)
-        self._quit()
+        self.quit()
 
 
 
@@ -225,15 +247,8 @@ class Stimuli:
 
 
 if __name__ == "__main__":
-    # # set up logging from multiple processes
-    #
-    # # shared queue
-    # queue_manager = multiprocessing.Manager()
-    # queue = queue_manager.Queue()
-    #
-    # logger = logging.getLogger()
-    # handler = logging.StreamHandler()
-
     exp = Experiment()
     exp.setup()
+    for trig in exp.triggers:
+        exp.triggers[trig] = True
     exp.run()
