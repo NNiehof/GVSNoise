@@ -11,8 +11,8 @@ class GetNextTrial(ABC):
         self.conditions = conditions
 
     @abstractmethod
-    def get_stimulus(self):
+    def get_stimulus(self, trial_nr):
         """
-        Return a stimulus value to be presented in the next trial.
+        Return a stimulus value to be presented in the specified trial.
         """
 

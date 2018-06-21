@@ -9,15 +9,16 @@ from Experiment.GVSHandler import GVSHandler
 from Experiment.loggingConfig import Listener, Worker
 from Experiment.stateMachine import StateMachine
 from Experiment.randomStimulus import RandStim
-#TODO: fix the module so that the files don't have to be imported separately
+# TODO: fix the module so that the files don"t have to be imported separately
 
 
 class Experiment:
 
     def __init__(self):
         self.sj = 1 # TODO: change to read out
-        self.break_after_trials = 100
+        self.break_after_trials = 10
 
+        # experiment settings and conditions
         self.win = None
         self.frame_duration = 0
         self.paradigm = "GVSNoise"
@@ -26,6 +27,11 @@ class Experiment:
         self.triggers = None
         self.logger_main = None
         self.save_data = None
+        self.trials = None
+        self.break_trials = None
+        self.data = dict()
+        self.n_trials = 0
+        self.make_stim = None
 
         # root directory
         abs_path = os.path.abspath("__file__")
@@ -36,6 +42,18 @@ class Experiment:
         # TODO: read in from file
         self.frames = [-22.5, 0, 22.5]
         self.stimulus_range = range(-15, 15, 5)
+
+        # variables for running the experiment states
+        self.timer_triggers = {}
+        self.statenames = ["start", "init_trial", "pre_probe", "probe",
+                           "response"]
+        self.durations = dict()
+        self.start_time = None
+        self.trial_count = 0
+        self.new_state = None
+        self.go_next = False
+        self.rod_angle = 0
+        self.frame_angle = 0
 
     def setup(self):
         # display and window settings
@@ -48,16 +66,17 @@ class Experiment:
         log_name = make_log.datafile
         self._logger_setup(log_name)
         main_worker = Worker(self.log_queue, self.log_formatter,
-                                  self.default_logging_level, "main")
+                             self.default_logging_level, "main")
         self.logger_main = main_worker.logger
 
-        # start process that controls the GVS, wait for connection message
+        # start process which controls the GVS, wait for connection message
         self._gvs_setup()
         self._check_gvs_status("connected")
 
         # create stimuli
-        stim = Stimuli(self.win, self.settings_dir)
-        self.stimuli, self.triggers = stim.create()
+        self.make_stim = Stimuli(self.win, self.settings_dir, self.n_trials)
+        self.stimuli, self.triggers = self.make_stim.create()
+        self.logger_main.info("stimuli created")
 
         # data save file
         self.save_data = SaveData(self.sj, self.paradigm, self.condition,
@@ -68,6 +87,12 @@ class Experiment:
         self.break_trials = range(self.break_after_trials,
                                   len(self.trials.triallist),
                                   self.break_after_trials)
+        self.n_trials = len(self.trials.triallist)
+
+        # setup state machine that cycles through the experiment
+        self.logger_main.info("initiating state machine")
+        self._state_machine_setup()
+        self.logger_main.info("setup complete")
 
     def _display_setup(self):
         """
@@ -117,7 +142,6 @@ class Experiment:
         self.fsm = StateMachine()
         self.fsm.add_state("start", self.start_state)
         self.fsm.add_state("init_trial", self.init_trial_state)
-        self.fsm.add_state("iti", self.iti_state)
         self.fsm.add_state("pre_probe", self.pre_probe_state)
         self.fsm.add_state("probe", self.probe_state)
         self.fsm.add_state("response", self.response_state)
@@ -125,8 +149,13 @@ class Experiment:
         # define end and start state
         self.fsm.add_state("end", self.end_state, end_state=True)
         self.fsm.set_start("start")
+        self.fsm.add_logger(self.logger_main)
         self.go_next = False
 
+        # get state durations from json file
+        duration_file = "{}/durations.json".format(self.settings_dir)
+        with open(duration_file) as json_dur:
+            self.durations = json.load(json_dur)
 
     def _check_gvs_status(self, key):
         """
@@ -135,6 +164,7 @@ class Experiment:
         :param key: str
         :return: bool
         """
+        # TODO: make a safety so this doesn"t block without impunity
         while True:
             status = self.status_queue.get()
             if key in status:
@@ -158,52 +188,194 @@ class Experiment:
         core.quit()
 
     def run(self):
-        # TODO: implement experimental states
-        frame = 0
-        while True:
-            for stim in self.stimuli:
-                    if self.triggers[stim]:
-                        self.stimuli[stim].draw()
-            self.win.flip()
-            frame += 1
-            if frame > 180:
-                break
-        time.sleep(8)
+        self.logger_main.debug("stand back, I'm going to run the thing")
+        self.fsm.run()
         self.quit()
 
+    def display_stimuli(self):
+        for stim in self.stimuli:
+            if self.triggers[stim]:
+                self.stimuli[stim].draw()
+        self.win.flip()
+
+    def format_data(self):
+        formatted_data = "{}, {}, {}, {}, {}\n".format(
+            self.data["trialNr"], self.data["trialOnset"],
+            self.data["frameAngle"], self.data["rodAngle"],
+            self.data["response"])
+        return formatted_data
+
+    def check_response(self):
+        key_response = event.getKeys(keyList=["left", "right", "space", "escape"])
+        state_change = None
+        if key_response:
+            if "left" in key_response:
+                self.data["response"] = False
+                state_change = "init_trial"
+            elif "right" in key_response:
+                self.data["response"] = True
+                state_change = "init_trial"
+            elif "space" in key_response:
+                state_change = "pause"
+            elif "escape" in key_response:
+                state_change = "end"
+        return state_change
+
+    def check_keys(self):
+        key_presses = event.getKeys(keyList=["space", "escape"])
+        event.clearEvents(eventType="mouse")
+        state_change = None
+        if key_presses:
+            if "space" in key_presses:
+                state_change = "pause"
+            elif "escape" in key_presses:
+                state_change = "end"
+        return state_change
 
     def start_state(self):
-        # triggers for timers
-        self.timer_triggers = {}
-        self.statenames = ["start", "init_trial", "iti", "pre_probe", "probe",
-                           "response"]
+        # triggers for controlling the time duration of each state
         for state in self.statenames:
             self.timer_triggers[state] = True
-
         self.start_time = time.time()
-        self.trial_count = 0
         self.new_state = "init_trial"
         self.go_next = True
         return self.new_state, self.go_next
 
     def init_trial_state(self):
-        self.data = {}
+        self.logger_main.debug("start of init_trial loop")
+        self.data = dict()
         self.data["trialNr"] = self.trial_count
         self.trial_count += 1
 
         # check whether this is a break trial
         if self.trial_count in self.break_trials:
-            # add one to count because this trial doesn't need to be repeated
+            # add one to count because this trial doesn"t need to be repeated
             self.trial_count += 1
             self.new_state = "pause"
             self.go_next = True
             return self.new_state, self.go_next
 
-        # trial settings
-        trial = self.trials.get_stimulus()
-        self.line_angle = trial[0]
+        # get stimulus settings for current trial
+        trial = self.trials.get_stimulus(self.trial_count)
+        self.rod_angle = trial[0]
         self.frame_angle = trial[1]
-        self.data["trial_onset"]
+        self.data["trialOnset"] = time.time()
+        self.data["rodAngle"] = self.rod_angle
+        self.data["frameAngle"] = self.frame_angle
+        if self.frame_angle != "noframe":
+            self.stimuli["squareFrame"].ori = self.frame_angle
+        self.stimuli["rodAngle"].ori = self.rod_angle
+        self.display_stimuli()
+        self.logger_main.debug("stimuli displayed")
+
+        # reset state timer triggers
+        for state in self.statenames:
+            self.timer_triggers[state] = True
+        self.new_state = "pre_probe"
+        self.go_next = True
+        self.logger_main.debug("end of init_trial loop")
+        return self.new_state, self.go_next
+
+    def pre_probe_state(self):
+        # start the timer for the current state (once per trial)
+        if self.timer_triggers["pre_probe"]:
+            pre_probe_timer = time.time()
+            self.timer_triggers["pre_probe"] = False
+        # display stimulus
+        if self.frame_angle != "noframe":
+            self.triggers["squareFrame"] = True
+        self.display_stimuli()
+
+        # go to next state based on key presses or timer
+        self.new_state = self.check_keys()
+        if self.new_state == "pause":
+            self.go_next = True
+        elif self.new_state == "end":
+            self.go_next = True
+        else:
+            # if no key was pressed, go to probe state after timer runs out
+            self.new_state = "probe"
+            if (time.time() - pre_probe_timer) > self.durations["pre_probe"]:
+                self.go_next = True
+            else:
+                self.go_next = False
+        return self.new_state, self.go_next
+
+    def probe_state(self):
+        if self.timer_triggers["probe"]:
+            probe_timer = time.time()
+            self.timer_triggers["probe"] = False
+        if self.data["frameAngle"] != "noframe":
+            self.triggers["squareFrame"] = True
+        self.triggers["rodStim"] = True
+        self.display_stimuli()
+
+        self.new_state = self.check_keys()
+        if self.new_state == "pause":
+            self.go_next = True
+        elif self.new_state == "end":
+            self.go_next = True
+        else:
+            self.new_state = "response"
+            if (time.time() - probe_timer) > self.durations["probe"]:
+                self.go_next = True
+            else:
+                self.go_next = False
+        return self.new_state, self.go_next
+
+    def response_state(self):
+        if self.timer_triggers["response"]:
+            response_timer = time.time()
+            self.timer_triggers["response"] = False
+        self.triggers["dotsBackground"] = True
+        self.triggers["circlePatch"] = True
+        if self.data["frameAngle"] != "noframe":
+            self.triggers["squareFrame"] = True
+        self.triggers["rodStim"] = False
+        self.display_stimuli()
+
+        # if response is given, save data and go to next trial
+        self.new_state = self.check_response()
+        if self.new_state == "init_trial":
+            self.triggers["squareFrame"] = False
+            formatted_data = self.format_data()
+            self.save_data.write(formatted_data)
+            if self.trial_count == (len(self.trials) - 1):
+                self.new_state = "end"
+            self.go_next = True
+            return self.new_state, self.go_next
+        elif self.new_state == "pause":
+            self.go_next = True
+        elif self.new_state == "end":
+            self.go_next = True
+        elif (time.time() - response_timer) > self.durations["response"]:
+            # when a trial times out (no response given), rerun that trial
+            self.trial_count -= 1
+            self.triggers["squareFrame"] = False
+            self.new_state = "init_trial"
+            self.go_next = True
+        else:
+            self.new_state = "init_trial"
+            self.go_next = False
+        return self.new_state, self.go_next
+
+    def pause_state(self):
+        # make all stimuli invisible
+        for stim in self.triggers:
+            self.triggers[stim] = False
+        self.make_stim.draw_pause_screen(self.trial_count)
+        event.waitKeys(maxWait=float("inf"), keyList=["space"])
+
+        # replay interrupted trial
+        self.trial_count -= 1
+        self.new_state = "init_trial"
+        self.go_next = True
+        return self.new_state, self.go_next
+
+    def end_state(self):
+        self.new_state = None
+        self.go_next = True
+        return self.new_state, self.go_next
 
 
 class SaveData:
@@ -264,16 +436,20 @@ class SaveData:
 
 class Stimuli:
 
-    def __init__(self, window, settings_dir):
+    def __init__(self, window, settings_dir, n_trials=0):
         """
         Create visual stimuli with PsychoPy.
 
         :param window: psychopy window instance
+        :param settings_dir: directory where the stimulus settings are saved
+        (stimuli.json)
+        :param n_trials: (optional) number of trials in the experiment
         """
         self.stimuli = OrderedDict()
         self.triggers = {}
 
         self.settings_dir = settings_dir
+        self.num_trials = n_trials
         self.win = window
 
     def create(self):
@@ -293,10 +469,22 @@ class Stimuli:
 
         return self.stimuli, self.triggers
 
+    def draw_pause_screen(self, current_trial):
+        win_width, win_height = self.win.size
+        pause_screen = visual.Rect(win=self.win, width=win_width,
+                                   height=win_height, lineColor=(0, 0, 0),
+                                   fillColor=(0, 0, 0))
+        pause_str = "PAUSE  trial {}/{} Press space to continue".format(
+            current_trial, self.num_trials)
+        pause_text = visual.TextStim(win=self.win, text=pause_str,
+                                     pos=(0.0, 0.0), color=(-1, -1, 0.6),
+                                     units="pix", height=40)
+        pause_screen.draw()
+        pause_text.draw()
+        self.win.flip()
+
 
 if __name__ == "__main__":
     exp = Experiment()
     exp.setup()
-    for trig in exp.triggers:
-        exp.triggers[trig] = True
     exp.run()

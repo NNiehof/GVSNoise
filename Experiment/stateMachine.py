@@ -14,12 +14,16 @@ class StateMachine(object):
         self.handlers = {}
         self.startState = {}
         self.endStates = []
+        self.logger = None
 
     def add_state(self, name, handler, end_state=False):
         name = name.upper()
         self.handlers[name] = handler
         if end_state:
             self.endStates.append(name)
+
+    def add_logger(self, logger):
+        self.logger = logger
 
     def set_start(self, name):
         self.startState = name.upper()
@@ -38,7 +42,10 @@ class StateMachine(object):
                 break
             elif go_next:
                 # progress to next state when go_next trigger is set to True
-                print('Next state: {}'.format(new_state))
+                if self.logger is not None:
+                    self.logger.info("Next state: {}".format(new_state))
+                else:
+                    print("Next state: {}".format(new_state))
                 handler = self.handlers[new_state.upper()]
             else:
                 # loop in current state if the go_next trigger is set to False
