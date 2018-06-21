@@ -104,11 +104,12 @@ class GVSHandler():
         were successfully written
         """
         samps_written = self.gvs.write_to_channel(self.stimulus)
+        self.logger.info("GVS: {} samples written".format(samps_written))
 
         if len(self.stimulus) == samps_written:
-            self.status_queue.put(True)
+            self.status_queue.put({"stim_sent": True})
         else:
-            self.status_queue.put(False)
+            self.status_queue.put({"stim_sent": False})
 
     def _check_args(self, keylist, check_dict):
         return all(key in check_dict for key in keylist)

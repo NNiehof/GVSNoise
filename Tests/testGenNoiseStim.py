@@ -37,7 +37,7 @@ def test_noise_signal(f_samp):
     Check the generated voltage with an oscilloscope.
     """
     try:
-        gvs = GVS(max_voltage=1.0, logfile="testGenNoiseStimlog.log")
+        gvs = GVS(max_voltage=1.0)
         gvs.connect(physical_channel_name="cDAQ1Mod1/ao0")
     except:
         return
@@ -56,6 +56,7 @@ def test_noise_signal(f_samp):
     gvs.quit()
 
     return samples, faded_samples
+
 
 if __name__ == "__main__":
 

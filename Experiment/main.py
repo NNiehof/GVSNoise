@@ -73,6 +73,13 @@ class Experiment:
         self._gvs_setup()
         self._check_gvs_status("connected")
 
+        # trial list
+        self.trials = RandStim(self.stimulus_range, self.frames)
+        self.break_trials = range(self.break_after_trials,
+                                  len(self.trials.triallist),
+                                  self.break_after_trials)
+        self.n_trials = len(self.trials.triallist)
+
         # create stimuli
         self.make_stim = Stimuli(self.win, self.settings_dir, self.n_trials)
         self.stimuli, self.triggers = self.make_stim.create()
@@ -81,13 +88,6 @@ class Experiment:
         # data save file
         self.save_data = SaveData(self.sj, self.paradigm, self.condition,
                                   sj_leading_zeros=3, root_dir=self.root_dir)
-
-        # trial list
-        self.trials = RandStim(self.stimulus_range, self.frames)
-        self.break_trials = range(self.break_after_trials,
-                                  len(self.trials.triallist),
-                                  self.break_after_trials)
-        self.n_trials = len(self.trials.triallist)
 
         # setup state machine that cycles through the experiment
         self.logger_main.info("initiating state machine")
@@ -168,7 +168,7 @@ class Experiment:
         :param key: str
         :return: bool
         """
-        # TODO: make a safety so this doesn"t block without impunity
+        # TODO: make a safety so this doesn't block without impunity
         while True:
             status = self.status_queue.get()
             if key in status:
@@ -247,6 +247,7 @@ class Experiment:
     def init_trial_state(self):
         self.data = dict()
         self.data["trialNr"] = self.trial_count
+        self.logger_main.info("trial {}".format(self.trial_count))
         self.trial_count += 1
 
         # check whether this is a break trial
@@ -267,7 +268,23 @@ class Experiment:
         if self.frame_angle != "noframe":
             self.stimuli["squareFrame"].ori = self.frame_angle
         self.stimuli["rodStim"].ori = self.rod_angle
+
+        # create GVS stimulus in preparation
+        gvs_duration = self.durations["gvs"]
+        fade_samples = self.durations["fade"] * 1000
+        self.param_queue.put({"duration": gvs_duration, "amp": 1.0,
+                              "fade_samples": fade_samples})
+        # check whether the gvs profile was successfully created
+        if self._check_gvs_status("stim_created"):
+            self.logger_main.info("gvs current profile created")
+        else:
+            self.logger_main.warning("WARNING: current profile not created")
+
         self.display_stimuli()
+
+        # send the GVS signal to the stimulator. Note: init_trial_state is run
+        # only once per trial, so that the GVS current will be applied once.
+        self.param_queue.put(True)
 
         # reset state timer triggers
         for state in self.statenames:

@@ -5,5 +5,5 @@
 	],
 	"winType": "pygame",
 	"units": "pix",
-	"fullscr": false
+	"fullscr": true
 }
