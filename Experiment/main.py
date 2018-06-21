@@ -121,6 +121,10 @@ class Experiment:
         self.log_queue = queue_manager.Queue()
         self.log_listener = Listener(self.log_queue, self.log_formatter,
                                      self.default_logging_level, log_file)
+        # note: for debugging, comment out the next line. Starting the listener
+        # will cause pipe breakage in case of a bug elsewhere in the code,
+        # and the console will be flooded with error messages from the
+        # listener.
         self.log_listener.start()
 
     def _gvs_setup(self):
@@ -188,7 +192,6 @@ class Experiment:
         core.quit()
 
     def run(self):
-        self.logger_main.debug("stand back, I'm going to run the thing")
         self.fsm.run()
         self.quit()
 
@@ -242,7 +245,6 @@ class Experiment:
         return self.new_state, self.go_next
 
     def init_trial_state(self):
-        self.logger_main.debug("start of init_trial loop")
         self.data = dict()
         self.data["trialNr"] = self.trial_count
         self.trial_count += 1
@@ -264,22 +266,20 @@ class Experiment:
         self.data["frameAngle"] = self.frame_angle
         if self.frame_angle != "noframe":
             self.stimuli["squareFrame"].ori = self.frame_angle
-        self.stimuli["rodAngle"].ori = self.rod_angle
+        self.stimuli["rodStim"].ori = self.rod_angle
         self.display_stimuli()
-        self.logger_main.debug("stimuli displayed")
 
         # reset state timer triggers
         for state in self.statenames:
             self.timer_triggers[state] = True
         self.new_state = "pre_probe"
         self.go_next = True
-        self.logger_main.debug("end of init_trial loop")
         return self.new_state, self.go_next
 
     def pre_probe_state(self):
         # start the timer for the current state (once per trial)
         if self.timer_triggers["pre_probe"]:
-            pre_probe_timer = time.time()
+            self.pre_probe_timer = time.time()
             self.timer_triggers["pre_probe"] = False
         # display stimulus
         if self.frame_angle != "noframe":
@@ -295,7 +295,7 @@ class Experiment:
         else:
             # if no key was pressed, go to probe state after timer runs out
             self.new_state = "probe"
-            if (time.time() - pre_probe_timer) > self.durations["pre_probe"]:
+            if (time.time() - self.pre_probe_timer) > self.durations["pre_probe"]:
                 self.go_next = True
             else:
                 self.go_next = False
@@ -303,7 +303,7 @@ class Experiment:
 
     def probe_state(self):
         if self.timer_triggers["probe"]:
-            probe_timer = time.time()
+            self.probe_timer = time.time()
             self.timer_triggers["probe"] = False
         if self.data["frameAngle"] != "noframe":
             self.triggers["squareFrame"] = True
@@ -317,7 +317,7 @@ class Experiment:
             self.go_next = True
         else:
             self.new_state = "response"
-            if (time.time() - probe_timer) > self.durations["probe"]:
+            if (time.time() - self.probe_timer) > self.durations["probe"]:
                 self.go_next = True
             else:
                 self.go_next = False
@@ -325,7 +325,7 @@ class Experiment:
 
     def response_state(self):
         if self.timer_triggers["response"]:
-            response_timer = time.time()
+            self.response_timer = time.time()
             self.timer_triggers["response"] = False
         self.triggers["dotsBackground"] = True
         self.triggers["circlePatch"] = True
@@ -340,7 +340,7 @@ class Experiment:
             self.triggers["squareFrame"] = False
             formatted_data = self.format_data()
             self.save_data.write(formatted_data)
-            if self.trial_count == (len(self.trials) - 1):
+            if self.trial_count == (self.n_trials - 1):
                 self.new_state = "end"
             self.go_next = True
             return self.new_state, self.go_next
@@ -348,7 +348,7 @@ class Experiment:
             self.go_next = True
         elif self.new_state == "end":
             self.go_next = True
-        elif (time.time() - response_timer) > self.durations["response"]:
+        elif (time.time() - self.response_timer) > self.durations["response"]:
             # when a trial times out (no response given), rerun that trial
             self.trial_count -= 1
             self.triggers["squareFrame"] = False
