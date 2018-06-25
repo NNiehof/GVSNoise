@@ -4,12 +4,26 @@ import nidaqmx
 from nidaqmx import constants, stream_writers
 import time
 import logging
-from Experiment.loggingConfig import Worker, formatter, default_logging_level
 
 
 class GVS(object):
-    def __init__(self, max_voltage=3.0, logging_queue=None):
+    """
+    Represents a GVS object that communicates with the NIDAQ digital-to-analog
+    converter, which sends signals to the Biopac STMISOLA stimulator.
+    """
+    def __init__(self, max_voltage=1.0, logger=None):
+        """
+        Create a GVS communication object.
 
+        :param max_voltage: maximum voltage the NIDAQ should generate.
+        Note: this translates to a maximum current (with 1 V corresponding to
+        1 mA) when the Biopac STMISOLA is in current mode (I). Depending on the
+        impedance between the electrodes on the participant's head, the
+        generated voltage can vary as V = I * R.
+
+        :param logger: (optional) logging object.
+        If undefined, log messages will be sent to the console.
+        """
         self.max_voltage = abs(max_voltage)
 
         # create a task, initialise stream writer
@@ -17,10 +31,8 @@ class GVS(object):
         self.writer = None
 
         # set up logger
-        if logging_queue is not None:
-            worker = Worker(logging_queue, formatter, default_logging_level,
-                            "GVS")
-            self.logger = worker.logger
+        if logger is not None:
+            self.logger = logger
         else:
             logging.basicConfig(level=logging.DEBUG,
                                 format="%(asctime)s %(message)s")
@@ -33,7 +45,8 @@ class GVS(object):
 
         :param physical_channel_name: name of output port on NIDAQ (to see
         available channel names, open NI MAX (software included with driver
-        installation) and look under "Devices and Interfaces")
+        installation) and look under "Devices and Interfaces").
+        The name might look something like "cDAQ1Mod1/ao0".
         :return: True if connection was successful, otherwise False.
         """
         try:
@@ -98,6 +111,7 @@ class GVS(object):
         self.task.close()
         self.logger.info("GVS task closed")
         return True
+
 
 if __name__ == "__main__":
     gvs = GVS(max_voltage=1.0)

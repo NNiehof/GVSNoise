@@ -25,9 +25,13 @@ class GVSHandler():
         worker = Worker(logging_queue, formatter, default_logging_level,
                         "GVSHandler")
         self.logger = worker.logger
+        # second logger to pass to GVS object
+        subworker = Worker(logging_queue, formatter, default_logging_level,
+                           "GVS")
+        self.sublogger = subworker.logger
 
         # GVS control object
-        self.gvs = GVS(logging_queue=logging_queue)
+        self.gvs = GVS(logger=self.sublogger)
         connected = self.gvs.connect(PHYSICAL_CHANNEL_NAME)
         if connected:
             self.logger.info("NIDAQ connection established")
