@@ -34,29 +34,47 @@ class TestHandlerCommunication(unittest.TestCase):
 
     def test_create_stim(self):
         self.param_queue.put({"duration": 5.0, "amp": 1.0})
-        self.assertTrue(self.status_queue.get())
+        status = self.status_queue.get()
+        if status["params_correct"]:
+            status = self.status_queue.get()
+            self.assertTrue(status["stim_created"])
+        else:
+            return False
 
     def test_create_stim_with_fade(self):
         self.param_queue.put({"duration": 5.0, "amp": 1.0,
                               "fade_samples": 100.0})
-        self.assertTrue(self.status_queue.get())
+        status = self.status_queue.get()
+        if status["params_correct"]:
+            status = self.status_queue.get()
+            self.assertTrue(status["stim_created"])
+        else:
+            return False
 
     def test_incomplete_dict(self):
         self.param_queue.put({"duration": 5.0})
-        self.assertFalse(self.status_queue.get())
+        status = self.status_queue.get()
+        self.assertFalse(status["params_correct"])
 
     def test_wrong_dict(self):
         self.param_queue.put({"something": 5.0, "other": 4.0})
-        self.assertFalse(self.status_queue.get())
+        status = self.status_queue.get()
+        self.assertFalse(status["params_correct"])
 
     def test_wrong_param_type(self):
         self.param_queue.put(5)
-        self.assertFalse(self.status_queue.get())
+        status = self.status_queue.get()
+        self.assertFalse(status["params_correct"])
 
     def test_send_stim(self):
         self.param_queue.put({"duration": 5.0, "amp": 1.0})
         self.param_queue.put(True)
-        self.assertTrue(self.status_queue.get())
+        status = self.status_queue.get()
+        if status["params_correct"]:
+            status = self.status_queue.get()
+            self.assertTrue(status["stim_created"])
+        else:
+            return False
 
 
 if __name__ == "__main__":

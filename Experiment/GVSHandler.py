@@ -103,10 +103,18 @@ class GVSHandler():
         Send the stimulus to the GVS channel, check whether all samples
         were successfully written
         """
-        samps_written = self.gvs.write_to_channel(self.stimulus)
+        n_samples = len(self.stimulus)
+        try:
+            samps_written = self.gvs.write_to_channel(self.stimulus)
+            # delete stimulus after sending, so that it can only be sent once
+            self.stimulus = None
+        except AttributeError as err:
+            self.logger.error("Error: tried to send invalid stimulus to NIDAQ."
+                              "Note that a stimulus instance can only be sent"
+                              "once./n{}".format(err))
         self.logger.info("GVS: {} samples written".format(samps_written))
 
-        if len(self.stimulus) == samps_written:
+        if n_samples == samps_written:
             self.status_queue.put({"stim_sent": True})
         else:
             self.status_queue.put({"stim_sent": False})
