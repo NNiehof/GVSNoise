@@ -168,7 +168,7 @@ class Experiment:
         :param key: str
         :return: bool
         """
-        # TODO: make a safety so this doesn't block without impunity
+        # TODO: make a safety so this doesn't block with impunity
         while True:
             status = self.status_queue.get()
             if key in status:

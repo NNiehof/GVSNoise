@@ -70,8 +70,8 @@ class GVSHandler():
 
                 else:
                     self.logger.error("Incorrect input to GVSHandler parameter"
-                                      "queue. Input must be a dict with"
-                                      "parameters specified in GVS.py, a"
+                                      " queue. Input must be a dict with "
+                                      "parameters specified in GVS.py, a "
                                       "boolean, or a string STOP to quit.")
                     self.status_queue.put({"params_correct": False})
 
@@ -103,15 +103,17 @@ class GVSHandler():
         Send the stimulus to the GVS channel, check whether all samples
         were successfully written
         """
-        n_samples = len(self.stimulus)
+        n_samples = None
+        samps_written = 0
         try:
             samps_written = self.gvs.write_to_channel(self.stimulus)
+            n_samples = len(self.stimulus)
             # delete stimulus after sending, so that it can only be sent once
             self.stimulus = None
         except AttributeError as err:
             self.logger.error("Error: tried to send invalid stimulus to NIDAQ."
-                              "Note that a stimulus instance can only be sent"
-                              "once./n{}".format(err))
+                              "\nNote that a stimulus instance can only be"
+                              "sent once.\nAttributeError: {}".format(err))
         self.logger.info("GVS: {} samples written".format(samps_written))
 
         if n_samples == samps_written:

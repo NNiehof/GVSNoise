@@ -86,6 +86,10 @@ class GVS(object):
         self.logger.info("{0} stop GVS".format(t_stop))
         self.logger.info("GVS duration = {0}".format(t_stop - t_start))
 
+        # write one zero sample to set the baseline back to zero
+        # (NIDAQ otherwise maintains the output voltage of the last sample)
+        self.writer.write_one_sample(0.0)
+
         assert isinstance(samps_written, int)
         return samps_written
 

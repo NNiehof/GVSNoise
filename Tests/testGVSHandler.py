@@ -69,12 +69,32 @@ class TestHandlerCommunication(unittest.TestCase):
     def test_send_stim(self):
         self.param_queue.put({"duration": 5.0, "amp": 1.0})
         self.param_queue.put(True)
-        status = self.status_queue.get()
-        if status["params_correct"]:
+        count = 0
+        while count < 10:
+            count += 1
             status = self.status_queue.get()
-            self.assertTrue(status["stim_created"])
-        else:
-            return False
+            if "stim_sent" in status:
+                self.assertTrue(status["stim_sent"])
+                break
+
+    def test_send_duplicate_stim(self):
+        self.param_queue.put({"duration": 5.0, "amp": 1.0})
+        self.param_queue.put(True)
+        count = 0
+        while count < 10:
+            count += 1
+            status = self.status_queue.get()
+            if "stim_sent" in status:
+                break
+        # attempt to send stimulus a second time
+        self.param_queue.put(True)
+        count_dup = 0
+        while count_dup < 10:
+            count_dup += 1
+            status = self.status_queue.get()
+            if "stim_sent" in status:
+                self.assertFalse(status["stim_sent"])
+                break
 
 
 if __name__ == "__main__":
