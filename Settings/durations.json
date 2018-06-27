@@ -1,0 +1,9 @@
+{
+	"start": null,
+	"init_trial": null,
+	"pre_probe": 3.0,
+	"probe": 0.033,
+	"response": 2.0,
+	"gvs": 4.0,
+	"fade": 1.0
+}
