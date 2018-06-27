@@ -11,6 +11,8 @@ class GVSHandler():
         # TODO: pass constants as arguments
         PHYSICAL_CHANNEL_NAME = "cDAQ1Mod1/ao0"
         SAMPLING_FREQ = 1e3
+        SAMPLE_BUFFER_SIZE = int(4001)
+
 
         # I/O queues
         self.param_queue = param_queue
@@ -32,7 +34,8 @@ class GVSHandler():
 
         # GVS control object
         self.gvs = GVS(logger=self.sublogger)
-        connected = self.gvs.connect(PHYSICAL_CHANNEL_NAME)
+        timing = {"rate": SAMPLING_FREQ, "samps_per_chan": SAMPLE_BUFFER_SIZE}
+        connected = self.gvs.connect(PHYSICAL_CHANNEL_NAME, **timing)
         if connected:
             self.logger.info("NIDAQ connection established")
             self.status_queue.put({"connected": True})
@@ -117,7 +120,7 @@ class GVSHandler():
         except AttributeError as err:
             self.logger.error("Error: tried to send invalid stimulus to NIDAQ."
                               "\nNote that a stimulus instance can only be"
-                              "sent once.\nAttributeError: {}".format(err))
+                              " sent once.\nAttributeError: {}".format(err))
         self.logger.info("GVS: {} samples written".format(samps_written))
 
         if n_samples == samps_written:

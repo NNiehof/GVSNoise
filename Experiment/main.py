@@ -125,7 +125,7 @@ class Experiment:
         # will cause pipe breakage in case of a bug elsewhere in the code,
         # and the console will be flooded with error messages from the
         # listener.
-        self.log_listener.start()
+        # self.log_listener.start()
 
     def _gvs_setup(self):
         """

@@ -38,7 +38,7 @@ class GVS(object):
                                 format="%(asctime)s %(message)s")
             self.logger = logging.getLogger()
 
-    def connect(self, physical_channel_name):
+    def connect(self, physical_channel_name, **timing_args):
         """
         Establish connection with NIDAQ apparatus. A virtual output channel
         and data stream writer are created.
@@ -47,6 +47,10 @@ class GVS(object):
         available channel names, open NI MAX (software included with driver
         installation) and look under "Devices and Interfaces").
         The name might look something like "cDAQ1Mod1/ao0".
+        :param sampling_rate: samples per second to generate per channel.
+        Default is 10 kHz.
+        **timing_args : keyword arguments from
+        nidqamx.task.timing.cfg_samp_clk_timing.
         :return: True if connection was successful, otherwise False.
         """
         try:
@@ -58,6 +62,8 @@ class GVS(object):
                 max_val=self.max_voltage,
                 units=constants.VoltageUnits.VOLTS
             )
+            # config timing
+            self.task.timing.cfg_samp_clk_timing(**timing_args)
             # create output stream writer
             self.writer = stream_writers.AnalogSingleChannelWriter(
                 self.task.out_stream, auto_start=True
@@ -67,7 +73,7 @@ class GVS(object):
             self.logger.error("DAQmx error: {0}".format(err))
             return False
 
-        self.task.start()
+        # self.task.start()
         self.logger.info("GVS task started")
         return True
 
@@ -89,19 +95,20 @@ class GVS(object):
         :param current_profile: Numpy array of samples
         :return samps_written: number of samples successfully written
         """
+        # replace the very last sample with zero to set the baseline back to zero
+        # (NIDAQ otherwise maintains the output voltage of the last sample)
+        current_profile[-1] = 0.0
+
         t_start = time.time()
         self.logger.info("{0} start GVS".format(t_start))
 
         samps_written = self.writer.write_many_sample(current_profile)
         self.task.wait_until_done(timeout=nidaqmx.constants.WAIT_INFINITELY)
+        self.task.stop()
 
         t_stop = time.time()
         self.logger.info("{0} stop GVS".format(t_stop))
         self.logger.info("GVS duration = {0}".format(t_stop - t_start))
-
-        # write one zero sample to set the baseline back to zero
-        # (NIDAQ otherwise maintains the output voltage of the last sample)
-        self.writer.write_one_sample(0.0)
 
         assert isinstance(samps_written, int)
         return samps_written
