@@ -11,8 +11,7 @@ class GVSHandler():
         # TODO: pass constants as arguments
         PHYSICAL_CHANNEL_NAME = "cDAQ1Mod1/ao0"
         SAMPLING_FREQ = 1e3
-        SAMPLE_BUFFER_SIZE = int(4001)
-
+        SAMPLE_BUFFER_SIZE = int(4e3)
 
         # I/O queues
         self.param_queue = param_queue
@@ -113,7 +112,8 @@ class GVSHandler():
         n_samples = None
         samps_written = 0
         try:
-            samps_written = self.gvs.write_to_channel(self.stimulus)
+            samps_written = self.gvs.write_to_channel(self.stimulus,
+                                                      reset_to_zero_volts=True)
             n_samples = len(self.stimulus)
             # delete stimulus after sending, so that it can only be sent once
             self.stimulus = None

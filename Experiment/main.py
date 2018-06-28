@@ -125,7 +125,7 @@ class Experiment:
         # will cause pipe breakage in case of a bug elsewhere in the code,
         # and the console will be flooded with error messages from the
         # listener.
-        # self.log_listener.start()
+        self.log_listener.start()
 
     def _gvs_setup(self):
         """
@@ -272,6 +272,7 @@ class Experiment:
         # create GVS stimulus in preparation
         gvs_duration = self.durations["gvs"]
         fade_samples = self.durations["fade"] * 1000
+        # TODO: get amp from trial list (also optional no current)
         self.param_queue.put({"duration": gvs_duration, "amp": 1.0,
                               "fade_samples": fade_samples})
         # check whether the gvs profile was successfully created

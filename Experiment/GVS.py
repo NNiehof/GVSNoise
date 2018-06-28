@@ -73,7 +73,6 @@ class GVS(object):
             self.logger.error("DAQmx error: {0}".format(err))
             return False
 
-        # self.task.start()
         self.logger.info("GVS task started")
         return True
 
@@ -88,26 +87,30 @@ class GVS(object):
         else:
             self._max_voltage = max_voltage
 
-    def write_to_channel(self, current_profile):
+    def write_to_channel(self, current_profile, reset_to_zero_volts=False):
         """
         Send a current profile to the output channel.
 
         :param current_profile: Numpy array of samples
+        :param reset_to_zero_volts: (bool, optional)
+        Changes the final sample to 0 V, to set the excitation level of
+        the NIDAQ back to zero. Otherwise, the NIDAQ continues excitation
+        at the level of the final sample.
         :return samps_written: number of samples successfully written
         """
-        # replace the very last sample with zero to set the baseline back to zero
-        # (NIDAQ otherwise maintains the output voltage of the last sample)
-        current_profile[-1] = 0.0
+        if reset_to_zero_volts:
+            # replace the final sample with zero to set the baseline back
+            current_profile[-1] = 0.0
+            self.logger.info("final current sample set to 0 V")
 
         t_start = time.time()
-        self.logger.info("{0} start GVS".format(t_start))
-
         samps_written = self.writer.write_many_sample(current_profile)
         self.task.wait_until_done(timeout=nidaqmx.constants.WAIT_INFINITELY)
+        t_stop = time.time()
         self.task.stop()
 
-        t_stop = time.time()
-        self.logger.info("{0} stop GVS".format(t_stop))
+        self.logger.debug("{0} start GVS".format(t_start))
+        self.logger.debug("{0} stop GVS".format(t_stop))
         self.logger.info("GVS duration = {0}".format(t_stop - t_start))
 
         assert isinstance(samps_written, int)
