@@ -1,14 +1,17 @@
 from abc import ABC, abstractmethod
+from numpy import repeat
 
 
 class GetNextTrial(ABC):
 
     @abstractmethod
-    def __init__(self, stimulus_range, conditions):
-        self.stimulus_range = stimulus_range
-        if not isinstance(conditions, list):
-            raise(TypeError("conditions must be a list"))
-        self.conditions = conditions
+    def __init__(self, stimulus_range, repeats):
+        """
+
+        :param stimulus_range: list
+        :param repeats: int, or list with same length as stimulus_range
+        """
+        self.probes = repeat(stimulus_range, repeats)
 
     @abstractmethod
     def get_stimulus(self, trial_nr):

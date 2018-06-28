@@ -76,9 +76,9 @@ class Experiment:
         # trial list
         self.trials = RandStim(self.stimulus_range, self.frames)
         self.break_trials = range(self.break_after_trials,
-                                  len(self.trials.triallist),
+                                  len(self.trials.trial_list),
                                   self.break_after_trials)
-        self.n_trials = len(self.trials.triallist)
+        self.n_trials = len(self.trials.trial_list)
 
         # create stimuli
         self.make_stim = Stimuli(self.win, self.settings_dir, self.n_trials)
