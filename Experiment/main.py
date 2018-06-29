@@ -49,6 +49,7 @@ class Experiment:
         self.go_next = False
         self.rod_angle = 0
         self.frame_angle = 0
+        self.current = 0
 
     def setup(self):
         # display and window settings
@@ -200,10 +201,10 @@ class Experiment:
         self.win.flip()
 
     def format_data(self):
-        formatted_data = "{}, {}, {}, {}, {}\n".format(
+        formatted_data = "{}, {}, {}, {}, {}, {}\n".format(
             self.data["trialNr"], self.data["trialOnset"],
             self.data["frameAngle"], self.data["rodAngle"],
-            self.data["response"])
+            self.data["maxCurrent"], self.data["response"])
         return formatted_data
 
     def check_response(self):
@@ -260,9 +261,11 @@ class Experiment:
         trial = self.trials.get_stimulus(self.trial_count)
         self.rod_angle = trial[0]
         self.frame_angle = trial[1]
+        self.current = trial[2]
         self.data["trialOnset"] = time.time()
         self.data["rodAngle"] = self.rod_angle
         self.data["frameAngle"] = self.frame_angle
+        self.data["maxCurrent"] = self.current
         if self.frame_angle != "noframe":
             self.stimuli["squareFrame"].ori = self.frame_angle
         self.stimuli["rodStim"].ori = self.rod_angle
@@ -270,8 +273,7 @@ class Experiment:
         # create GVS stimulus in preparation
         gvs_duration = self.durations["gvs"]
         fade_samples = self.durations["fade"] * 1000
-        # TODO: get amp from trial list (also optional no current)
-        self.param_queue.put({"duration": gvs_duration, "amp": 1.0,
+        self.param_queue.put({"duration": gvs_duration, "amp": self.current,
                               "fade_samples": fade_samples})
         # check whether the gvs profile was successfully created
         if self._check_gvs_status("stim_created"):
