@@ -1,44 +1,26 @@
 from random import shuffle
-from Experiment.getTrial import GetNextTrial
-from sys import version_info
-import warnings
 import numpy as np
 
 
-class RandStim(GetNextTrial):
+class RandStim:
 
-    def __init__(self, stimulus_range, repeats, **conditions):
+    def __init__(self, stimulus_range=None, repeats=None, frame_angles=None,
+                 currents=None):
         """
         Object that creates a randomised list of trials, out of a range of
         stimulus values and conditions.
         :param stimulus_range: range
         :param repeats: number of repeats per combination
-        :param conditions: list
+        :param frame_angles: tilts in degrees
+        :param currents: maximum current in mA
         """
-
-        GetNextTrial.__init__(self, stimulus_range, repeats)
-        # trial list with all combinations of stimulus values and conditions
-        self.trial_list = self.probes
-        if version_info[0] < 3 or version_info[1] < 6:
-            warnings.warn("Order of kwargs is not preserved in Python "
-                          "< 3.6. Conditions may end up in the trial list "
-                          "in an unspecified order.", RuntimeWarning)
-        n_cond = sum([len(levels) for cond, levels in conditions.items()])
-        self.trial_list = np.repeat(self.trial_list, n_cond, axis=0)
-        self.trial_list = self.trial_list[..., np.newaxis]
-        levels_mat = np.zeros((len(self.trial_list), len(conditions)))
-        i_cond = 0
-        for cond, levels in conditions.items():
-
-            reps = int(len(self.trial_list) / len(levels))
-            c = np.(np.array(levels), reps, axis=0)
-            levels_mat[:, i_cond] = c
-            i_cond += 1
-
-        print(np.shape(self.trial_list))
-        print(np.shape(levels_mat))
-        self.trial_list = np.column_stack((self.trial_list, levels_mat))
-    # shuffle(self.trial_list)
+        self.trial_list = []
+        for stim, repeat in zip(stimulus_range, repeats):
+            for rep in range(repeat):
+                for frame in frame_angles:
+                    for curr in currents:
+                        self.trial_list.append([stim, frame, curr])
+        shuffle(self.trial_list)
 
     def get_stimulus(self, trial_nr):
         """

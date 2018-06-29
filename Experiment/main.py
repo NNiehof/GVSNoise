@@ -38,11 +38,6 @@ class Experiment:
         self.root_dir = os.path.dirname(os.path.dirname(abs_path))
         self.settings_dir = "{}/Settings".format(self.root_dir)
 
-        # conditions
-        # TODO: read in from file
-        self.frames = [-22.5, 0, 22.5]
-        self.stimulus_range = range(-15, 15, 5)
-
         # variables for running the experiment states
         self.timer_triggers = {}
         self.statenames = ["start", "init_trial", "pre_probe", "probe",
@@ -74,7 +69,10 @@ class Experiment:
         self._check_gvs_status("connected")
 
         # trial list
-        self.trials = RandStim(self.stimulus_range, self.frames)
+        conditions_file = "{}/conditions.json".format(self.settings_dir)
+        with open(conditions_file) as json_file:
+            conditions = json.load(json_file)
+        self.trials = RandStim(**conditions)
         self.break_trials = range(self.break_after_trials,
                                   len(self.trials.trial_list),
                                   self.break_after_trials)

@@ -11,7 +11,6 @@ class GetNextTrial(ABC):
         :param stimulus_range: list
         :param repeats: int, or list with same length as stimulus_range
         """
-        self.probes = repeat(stimulus_range, repeats)
 
     @abstractmethod
     def get_stimulus(self, trial_nr):
