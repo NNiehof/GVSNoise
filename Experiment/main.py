@@ -16,7 +16,7 @@ class Experiment:
 
     def __init__(self):
         self.sj = 1 # TODO: change to read out
-        self.break_after_trials = 10
+        self.break_after_trials = 100
 
         # experiment settings and conditions
         self.win = None
@@ -238,7 +238,8 @@ class Experiment:
         # triggers for controlling the time duration of each state
         for state in self.statenames:
             self.timer_triggers[state] = True
-        self.start_time = time.time()
+        # wait for space bar press to start experiment
+        event.waitKeys(maxWait=float("inf"), keyList=["space"])
         self.new_state = "init_trial"
         self.go_next = True
         return self.new_state, self.go_next
