@@ -3,6 +3,11 @@
 		800,
 		600
 	],
+	"color": [
+		-1,
+		-1,
+		-1
+	],
 	"winType": "pygame",
 	"units": "pix",
 	"fullscr": false
