@@ -11,7 +11,7 @@ class GVSHandler():
         # TODO: pass constants as arguments
         PHYSICAL_CHANNEL_NAME = "cDAQ1Mod1/ao0"
         SAMPLING_FREQ = 1e3
-        SAMPLE_BUFFER_SIZE = int(4e3)
+        SAMPLE_BUFFER_SIZE = int(22e3)
 
         # I/O queues
         self.param_queue = param_queue
@@ -57,6 +57,8 @@ class GVSHandler():
         This event loop is automatically started after a GVSHandler object
         is initialised.
         """
+        # send once as a flag to the main loop to send the first stimulus
+        self.status_queue.put({"stim_sent": False})
         while True:
             data = self.param_queue.get()
             if data == "STOP":

@@ -8,7 +8,7 @@ from psychopy import visual, core, event
 from Experiment.GVSHandler import GVSHandler
 from Experiment.loggingConfig import Listener, Worker
 from Experiment.stateMachine import StateMachine
-from Experiment.randomStimulus import RandStim
+from Experiment.blockedStimulus import BlockStim
 # TODO: fix the module so that the files don"t have to be imported separately
 
 
@@ -16,7 +16,7 @@ class Experiment:
 
     def __init__(self):
         self.sj = 1 # TODO: change to read out
-        self.break_after_trials = 100
+        self.break_after_trials = 9999
 
         # experiment settings and conditions
         self.win = None
@@ -73,7 +73,7 @@ class Experiment:
         conditions_file = "{}/conditions.json".format(self.settings_dir)
         with open(conditions_file) as json_file:
             conditions = json.load(json_file)
-        self.trials = RandStim(**conditions)
+        self.trials = BlockStim(**conditions)
         self.break_trials = range(self.break_after_trials,
                                   len(self.trials.trial_list),
                                   self.break_after_trials)
@@ -124,7 +124,7 @@ class Experiment:
         # will cause pipe breakage in case of a bug elsewhere in the code,
         # and the console will be flooded with error messages from the
         # listener.
-        self.log_listener.start()
+        # self.log_listener.start()
 
     def _gvs_setup(self):
         """
@@ -160,18 +160,22 @@ class Experiment:
         with open(duration_file) as json_dur:
             self.durations = json.load(json_dur)
 
-    def _check_gvs_status(self, key):
+    def _check_gvs_status(self, key, blocking=True):
         """
         Check the status of *key* on the status queue. Returns a boolean
         for the status. Note: this is a blocking process.
         :param key: str
-        :return: bool
+        :param blocking: bool, set to True to hang until the key parameter
+        is found in the queue. Set to False to check the queue once, then
+        return.
+        :return: bool or None
         """
-        # TODO: make a safety so this doesn't block with impunity
         while True:
             status = self.status_queue.get()
             if key in status:
                 return status[key]
+            if not blocking:
+                return None
 
     def quit(self):
         # send the stop signal to the GVS handler
@@ -252,7 +256,7 @@ class Experiment:
 
         # check whether this is a break trial
         if self.trial_count in self.break_trials:
-            # add one to count because this trial doesn"t need to be repeated
+            # add one to count because this trial doesn't need to be repeated
             self.trial_count += 1
             self.new_state = "pause"
             self.go_next = True
@@ -260,6 +264,7 @@ class Experiment:
 
         # get stimulus settings for current trial
         trial = self.trials.get_stimulus(self.trial_count)
+        print(trial)
         self.rod_angle = trial[0]
         self.frame_angle = trial[1]
         self.current = trial[2]
@@ -272,10 +277,12 @@ class Experiment:
         self.stimuli["rodStim"].ori = self.rod_angle
 
         # create GVS stimulus in preparation
-        gvs_duration = self.durations["gvs"]
-        fade_samples = self.durations["fade"] * 1000
-        self.param_queue.put({"duration": gvs_duration, "amp": self.current,
-                              "fade_samples": fade_samples})
+        status = self._check_gvs_status("stim_sent", blocking=False)
+        if status is not None:
+            gvs_duration = self.durations["gvs"]
+            fade_samples = self.durations["fade"] * 1000
+            self.param_queue.put({"duration": gvs_duration, "amp": self.current,
+                                  "fade_samples": fade_samples})
         # check whether the gvs profile was successfully created
         if self._check_gvs_status("stim_created"):
             self.logger_main.info("gvs current profile created")
@@ -286,7 +293,8 @@ class Experiment:
 
         # send the GVS signal to the stimulator. Note: init_trial_state is run
         # only once per trial, so that the GVS current will be applied once.
-        self.param_queue.put(True)
+        if status is not None:
+            self.param_queue.put(True)
 
         # reset state timer triggers
         for state in self.statenames:

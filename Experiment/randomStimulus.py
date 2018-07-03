@@ -20,7 +20,7 @@ class RandStim:
                 for frame in frame_angles:
                     for curr in currents:
                         self.trial_list.append([stim, frame, curr])
-        shuffle(self.trial_list)
+        # shuffle(self.trial_list)
 
     def get_stimulus(self, trial_nr):
         """
