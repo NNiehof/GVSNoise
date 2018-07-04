@@ -44,6 +44,7 @@ class Experiment:
         self.statenames = ["start", "init_trial", "pre_probe", "probe",
                            "response"]
         self.durations = dict()
+        self.conditions = dict()
         self.start_time = None
         self.trial_count = 0
         self.new_state = None
@@ -73,8 +74,8 @@ class Experiment:
         # trial list
         conditions_file = "{}/conditions.json".format(self.settings_dir)
         with open(conditions_file) as json_file:
-            conditions = json.load(json_file)
-        self.trials = BlockStim(**conditions)
+            self.conditions = json.load(json_file)
+        self.trials = BlockStim(**self.conditions)
         self.break_trials = range(self.break_after_trials,
                                   len(self.trials.trial_list),
                                   self.break_after_trials)
@@ -281,8 +282,10 @@ class Experiment:
         self.stimuli["rodStim"].ori = self.rod_angle
 
         # create GVS stimulus in preparation
-        status = self._check_gvs_status("stim_sent", blocking=False)
-        if status is not None:
+        block_start = False
+        if ((self.trial_count - 1) % self.conditions["block_size"]) == 0:
+            time.sleep(5)
+            block_start = True
             gvs_duration = self.durations["gvs"]
             fade_samples = self.durations["fade"] * 1000
             self.param_queue.put({"duration": gvs_duration, "amp": self.current,
@@ -297,7 +300,7 @@ class Experiment:
 
         # send the GVS signal to the stimulator. Note: init_trial_state is run
         # only once per trial, so that the GVS current will be applied once.
-        if status is not None:
+        if block_start:
             self.param_queue.put(True)
 
         # reset state timer triggers
