@@ -18,8 +18,7 @@ class BlockStim:
         for curr in currents:
             for stim, repeat in zip(stimulus_range, repeats):
                 for rep in range(repeat):
-                    for frame in frame_angles:
-                        trials.append([stim, frame, curr])
+                    trials.append([stim, frame_angles, curr])
         # split trial list in half over GVS current condition
         half = int(len(trials) / 2)
         first_half = trials[0:half]

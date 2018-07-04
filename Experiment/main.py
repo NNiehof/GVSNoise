@@ -1,4 +1,5 @@
 import multiprocessing
+from queue import Empty
 import logging
 import json
 import os
@@ -124,7 +125,7 @@ class Experiment:
         # will cause pipe breakage in case of a bug elsewhere in the code,
         # and the console will be flooded with error messages from the
         # listener.
-        # self.log_listener.start()
+        self.log_listener.start()
 
     def _gvs_setup(self):
         """
@@ -171,9 +172,13 @@ class Experiment:
         :return: bool or None
         """
         while True:
-            status = self.status_queue.get()
-            if key in status:
-                return status[key]
+            try:
+                status = self.status_queue.get(block=blocking)
+                if key in status:
+                    return status[key]
+            except Empty as error:
+                logging.error("_check_gvs_status: timeout occurred: "
+                              "{}".format(str(error)))
             if not blocking:
                 return None
 
@@ -264,7 +269,6 @@ class Experiment:
 
         # get stimulus settings for current trial
         trial = self.trials.get_stimulus(self.trial_count)
-        print(trial)
         self.rod_angle = trial[0]
         self.frame_angle = trial[1]
         self.current = trial[2]
@@ -283,11 +287,11 @@ class Experiment:
             fade_samples = self.durations["fade"] * 1000
             self.param_queue.put({"duration": gvs_duration, "amp": self.current,
                                   "fade_samples": fade_samples})
-        # check whether the gvs profile was successfully created
-        if self._check_gvs_status("stim_created"):
-            self.logger_main.info("gvs current profile created")
-        else:
-            self.logger_main.warning("WARNING: current profile not created")
+            # check whether the gvs profile was successfully created
+            if self._check_gvs_status("stim_created"):
+                self.logger_main.info("gvs current profile created")
+            else:
+                self.logger_main.warning("WARNING: current profile not created")
 
         self.display_stimuli()
 

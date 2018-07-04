@@ -11,7 +11,7 @@ class GVSHandler():
         # TODO: pass constants as arguments
         PHYSICAL_CHANNEL_NAME = "cDAQ1Mod1/ao0"
         SAMPLING_FREQ = 1e3
-        SAMPLE_BUFFER_SIZE = int(22e3)
+        SAMPLE_BUFFER_SIZE = int(24.5e3)
 
         # I/O queues
         self.param_queue = param_queue
