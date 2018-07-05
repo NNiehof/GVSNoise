@@ -8,7 +8,6 @@ from Experiment.loggingConfig import Worker, formatter, default_logging_level
 
 class GVSHandler():
     def __init__(self, param_queue, status_queue, logging_queue, buffer_size):
-        # TODO: pass constants as arguments
         PHYSICAL_CHANNEL_NAME = "cDAQ1Mod1/ao0"
         SAMPLING_FREQ = 1e3
 

@@ -17,7 +17,7 @@ class Experiment:
 
     def __init__(self):
         self.sj = 1 # TODO: change to read out
-        self.break_after_trials = 9999
+        self.break_after_trials = 120
 
         # experiment settings and conditions
         self.win = None
@@ -49,6 +49,7 @@ class Experiment:
         self.trial_count = 0
         self.new_state = None
         self.go_next = False
+        self.response_given = False
         self.rod_angle = 0
         self.frame_angle = 0
         self.current = 0
@@ -56,6 +57,11 @@ class Experiment:
     def setup(self):
         # display and window settings
         self._display_setup()
+
+        # get state durations from json file
+        duration_file = "{}/durations.json".format(self.settings_dir)
+        with open(duration_file) as json_dur:
+            self.durations = json.load(json_dur)
 
         # set up logging folder, file, and processes
         make_log = SaveData(self.sj, self.paradigm, self.condition,
@@ -134,10 +140,12 @@ class Experiment:
         """
         self.param_queue = multiprocessing.Queue()
         self.status_queue = multiprocessing.Queue()
+        buffer_size = self.durations["gvs"] * 1e3
         self.gvs_process = multiprocessing.Process(target=GVSHandler,
                                                    args=(self.param_queue,
                                                          self.status_queue,
-                                                         self.log_queue))
+                                                         self.log_queue,
+                                                         buffer_size))
         self.gvs_process.start()
 
     def _state_machine_setup(self):
@@ -157,11 +165,6 @@ class Experiment:
         self.fsm.add_logger(self.logger_main)
         self.go_next = False
 
-        # get state durations from json file
-        duration_file = "{}/durations.json".format(self.settings_dir)
-        with open(duration_file) as json_dur:
-            self.durations = json.load(json_dur)
-
     def _check_gvs_status(self, key, blocking=True):
         """
         Check the status of *key* on the status queue. Returns a boolean
@@ -177,9 +180,8 @@ class Experiment:
                 status = self.status_queue.get(block=blocking)
                 if key in status:
                     return status[key]
-            except Empty as error:
-                logging.error("_check_gvs_status: timeout occurred: "
-                              "{}".format(str(error)))
+            except Empty:
+                return None
             if not blocking:
                 return None
 
@@ -258,15 +260,7 @@ class Experiment:
         self.data = dict()
         self.data["trialNr"] = self.trial_count
         self.logger_main.info("trial {}".format(self.trial_count))
-        self.trial_count += 1
-
-        # check whether this is a break trial
-        if self.trial_count in self.break_trials:
-            # add one to count because this trial doesn't need to be repeated
-            self.trial_count += 1
-            self.new_state = "pause"
-            self.go_next = True
-            return self.new_state, self.go_next
+        self.response_given = False
 
         # get stimulus settings for current trial
         trial = self.trials.get_stimulus(self.trial_count)
@@ -283,8 +277,13 @@ class Experiment:
 
         # create GVS stimulus in preparation
         block_start = False
-        if ((self.trial_count - 1) % self.conditions["block_size"]) == 0:
-            time.sleep(5)
+        if (self.trial_count % self.conditions["block_size"]) == 0:
+            if self.trial_count != 0:
+                # wait for GVS of previous block to finish
+                while not self._check_gvs_status("stim_sent", blocking=False):
+                    self.display_stimuli()
+                    # clear event buffer to avoid it filling up and blocking
+                    self.check_keys()
             block_start = True
             gvs_duration = self.durations["gvs"]
             fade_samples = self.durations["fade"] * 1000
@@ -298,10 +297,13 @@ class Experiment:
 
         self.display_stimuli()
 
-        # send the GVS signal to the stimulator. Note: init_trial_state is run
-        # only once per trial, so that the GVS current will be applied once.
+        # send the GVS signal to the stimulator
         if block_start:
             self.param_queue.put(True)
+            # hang during the fade-in
+            gvs_start = time.time()
+            while (time.time() - gvs_start) < self.durations["fade"]:
+                self.display_stimuli()
 
         # reset state timer triggers
         for state in self.statenames:
@@ -323,7 +325,7 @@ class Experiment:
         # go to next state based on key presses or timer
         self.new_state = self.check_keys()
         if self.new_state == "pause":
-            self.go_next = True
+            self.go_next = False
         elif self.new_state == "end":
             self.go_next = True
         else:
@@ -346,7 +348,7 @@ class Experiment:
 
         self.new_state = self.check_keys()
         if self.new_state == "pause":
-            self.go_next = True
+            self.go_next = False
         elif self.new_state == "end":
             self.go_next = True
         else:
@@ -361,36 +363,52 @@ class Experiment:
         if self.timer_triggers["response"]:
             self.response_timer = time.time()
             self.timer_triggers["response"] = False
-        self.triggers["dotsBackground"] = True
-        self.triggers["circlePatch"] = True
         if self.data["frameAngle"] != "noframe":
             self.triggers["squareFrame"] = True
         self.triggers["rodStim"] = False
         self.display_stimuli()
 
-        # if response is given, save data and go to next trial
-        self.new_state = self.check_response()
-        if self.new_state == "init_trial":
+        time_up = (time.time() - self.response_timer)\
+            > self.durations["response"]
+
+        # check whether response is given
+        if time_up and self.response_given:
+            self.trial_count += 1
+            if self.trial_count in self.break_trials:
+                self.new_state = "pause"
+                self.go_next = True
+            else:
+                self.new_state = "init_trial"
+                self.go_next = True
+        elif time_up:
+            # TODO: save missed trials for later rerunning
+            self.trial_count += 1
             self.triggers["squareFrame"] = False
-            formatted_data = self.format_data()
-            self.save_data.write(formatted_data)
-            if self.trial_count == (self.n_trials - 1):
-                self.new_state = "end"
-            self.go_next = True
-            return self.new_state, self.go_next
-        elif self.new_state == "pause":
-            self.go_next = True
-        elif self.new_state == "end":
-            self.go_next = True
-        elif (time.time() - self.response_timer) > self.durations["response"]:
-            # when a trial times out (no response given), rerun that trial
-            self.trial_count -= 1
-            self.triggers["squareFrame"] = False
-            self.new_state = "init_trial"
-            self.go_next = True
+            if self.trial_count in self.break_trials:
+                self.new_state = "pause"
+                self.go_next = True
+            else:
+                self.new_state = "init_trial"
+                self.go_next = True
         else:
-            self.new_state = "init_trial"
-            self.go_next = False
+            self.new_state = self.check_response()
+            if self.new_state == "init_trial":
+                self.triggers["squareFrame"] = False
+                self.response_given = True
+                formatted_data = self.format_data()
+                self.save_data.write(formatted_data)
+            elif self.new_state == "pause":
+                # manual pausing is disabled
+                self.go_next = False
+            elif self.new_state == "end":
+                self.go_next = True
+            else:
+                # new state may not be None
+                self.new_state = "init_trial"
+                self.go_next = False
+        if not (self.trial_count < self.n_trials):
+            # TODO: run missed trials
+            self.new_state = "end"
         return self.new_state, self.go_next
 
     def pause_state(self):
@@ -399,17 +417,12 @@ class Experiment:
             self.triggers[stim] = False
         self.make_stim.draw_pause_screen(self.trial_count)
         event.waitKeys(maxWait=float("inf"), keyList=["space"])
-
-        # replay interrupted trial
-        self.trial_count -= 1
         self.new_state = "init_trial"
         self.go_next = True
         return self.new_state, self.go_next
 
     def end_state(self):
-        self.new_state = None
-        self.go_next = True
-        return self.new_state, self.go_next
+        self.quit()
 
 
 class SaveData:

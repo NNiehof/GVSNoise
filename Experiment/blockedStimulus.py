@@ -23,7 +23,7 @@ class BlockStim:
         half = int(len(trials) / 2)
         first_half = trials[0:half]
         shuffle(first_half)
-        second_half = trials[half:-1]
+        second_half = trials[half::]
         shuffle(second_half)
 
         # alternate current conditions
@@ -48,10 +48,10 @@ class BlockStim:
 
 
 if __name__ == "__main__":
-    stimulus_range = [-10, -5, 0, 5, 10]
-    repeats = [3, 3, 3, 3, 3]
-    cond = {"frame_angles": [22.5, 33.75], "currents": [0.0, 1.0],
-            "block_size": 3}
+    stimulus_range = [5, 4, 3, 2]
+    repeats = [2, 2, 2, 2]
+    cond = {"frame_angles": [0], "currents": [0.0, 1.0],
+            "block_size": 4}
     s = BlockStim(stimulus_range, repeats, **cond)
     print(s.trial_list)
-    print(np.shape(s.trial_list))
+    print(len(s.trial_list))
