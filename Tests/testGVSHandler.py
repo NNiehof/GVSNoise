@@ -19,7 +19,9 @@ class TestHandlerCommunication(unittest.TestCase):
         self.gvsProcess = multiprocessing.Process(target=GVSHandler,
                                                   args=(self.param_queue,
                                                         self.status_queue,
-                                                        self.log_queue))
+                                                        self.log_queue,
+                                                        5e3))
+        self.status = dict()
         self.gvsProcess.start()
         self.connected = self.status_queue.get()
 
@@ -34,37 +36,34 @@ class TestHandlerCommunication(unittest.TestCase):
 
     def test_create_stim(self):
         self.param_queue.put({"duration": 5.0, "amp": 1.0})
-        status = self.status_queue.get()
-        if status["params_correct"]:
-            status = self.status_queue.get()
-            self.assertTrue(status["stim_created"])
-        else:
-            return False
+        while "stim_created" not in self.status:
+            self.status = self.status_queue.get()
+        self.assertTrue(self.status["stim_created"])
 
     def test_create_stim_with_fade(self):
         self.param_queue.put({"duration": 5.0, "amp": 1.0,
                               "fade_samples": 100.0})
-        status = self.status_queue.get()
-        if status["params_correct"]:
-            status = self.status_queue.get()
-            self.assertTrue(status["stim_created"])
-        else:
-            return False
+        while "stim_created" not in self.status:
+            self.status = self.status_queue.get()
+        self.assertTrue(self.status["stim_created"])
 
     def test_incomplete_dict(self):
         self.param_queue.put({"duration": 5.0})
-        status = self.status_queue.get()
-        self.assertFalse(status["params_correct"])
+        while "stim_created" not in self.status:
+            self.status = self.status_queue.get()
+        self.assertFalse(self.status["stim_created"])
 
     def test_wrong_dict(self):
         self.param_queue.put({"something": 5.0, "other": 4.0})
-        status = self.status_queue.get()
-        self.assertFalse(status["params_correct"])
+        while "stim_created" not in self.status:
+            self.status = self.status_queue.get()
+        self.assertFalse(self.status["stim_created"])
 
     def test_wrong_param_type(self):
         self.param_queue.put(5)
-        status = self.status_queue.get()
-        self.assertFalse(status["params_correct"])
+        while "stim_created" not in self.status:
+            self.status = self.status_queue.get()
+        self.assertFalse(self.status["stim_created"])
 
     def test_send_stim(self):
         self.param_queue.put({"duration": 5.0, "amp": 1.0})
@@ -72,9 +71,9 @@ class TestHandlerCommunication(unittest.TestCase):
         count = 0
         while count < 10:
             count += 1
-            status = self.status_queue.get()
-            if "stim_sent" in status:
-                self.assertTrue(status["stim_sent"])
+            self.status = self.status_queue.get()
+            if "stim_sent" in self.status:
+                self.assertTrue(self.status["stim_sent"])
                 break
 
     def test_send_duplicate_stim(self):
@@ -83,17 +82,17 @@ class TestHandlerCommunication(unittest.TestCase):
         count = 0
         while count < 10:
             count += 1
-            status = self.status_queue.get()
-            if "stim_sent" in status:
+            self.status = self.status_queue.get()
+            if "stim_sent" in self.status:
                 break
         # attempt to send stimulus a second time
         self.param_queue.put(True)
         count_dup = 0
         while count_dup < 10:
             count_dup += 1
-            status = self.status_queue.get()
-            if "stim_sent" in status:
-                self.assertFalse(status["stim_sent"])
+            self.status = self.status_queue.get()
+            if "stim_sent" in self.status:
+                self.assertFalse(self.status["stim_sent"])
                 break
 
 

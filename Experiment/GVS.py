@@ -98,7 +98,7 @@ class GVS(object):
         at the level of the final sample.
         :return samps_written: number of samples successfully written
         """
-        if reset_to_zero_volts:
+        if reset_to_zero_volts and current_profile is not None:
             # replace the final sample with zero to set the baseline back
             current_profile[-1] = 0.0
             self.logger.info("final current sample set to 0 V")

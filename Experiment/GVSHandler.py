@@ -7,11 +7,10 @@ from Experiment.loggingConfig import Worker, formatter, default_logging_level
 
 
 class GVSHandler():
-    def __init__(self, param_queue, status_queue, logging_queue):
+    def __init__(self, param_queue, status_queue, logging_queue, buffer_size):
         # TODO: pass constants as arguments
         PHYSICAL_CHANNEL_NAME = "cDAQ1Mod1/ao0"
         SAMPLING_FREQ = 1e3
-        SAMPLE_BUFFER_SIZE = int(24.5e3)
 
         # I/O queues
         self.param_queue = param_queue
@@ -33,7 +32,8 @@ class GVSHandler():
 
         # GVS control object
         self.gvs = GVS(logger=self.sublogger)
-        timing = {"rate": SAMPLING_FREQ, "samps_per_chan": SAMPLE_BUFFER_SIZE}
+        self.buffer_size = int(buffer_size)
+        timing = {"rate": SAMPLING_FREQ, "samps_per_chan": self.buffer_size}
         connected = self.gvs.connect(PHYSICAL_CHANNEL_NAME, **timing)
         if connected:
             self.logger.info("NIDAQ connection established")
@@ -57,8 +57,6 @@ class GVSHandler():
         This event loop is automatically started after a GVSHandler object
         is initialised.
         """
-        # send once as a flag to the main loop to send the first stimulus
-        self.status_queue.put({"stim_sent": False})
         while True:
             data = self.param_queue.get()
             if data == "STOP":
@@ -81,7 +79,7 @@ class GVSHandler():
                                       " queue. Input must be a dict with "
                                       "parameters specified in GVS.py, a "
                                       "boolean, or a string STOP to quit.")
-                    self.status_queue.put({"params_correct": False})
+                    self.status_queue.put({"stim_created": False})
 
     def _create_stimulus(self, params=dict):
         """
@@ -95,9 +93,8 @@ class GVSHandler():
             if "fade_samples" in options:
                 del options["fade_samples"]
             self.makeStim.noise(params["duration"], params["amp"], **options)
-            self.status_queue.put({"params_correct": True})
         else:
-            self.status_queue.put({"params_correct": False})
+            self.status_queue.put({"stim_created": False})
             return
 
         if self._check_args(["fade_samples"], params):
