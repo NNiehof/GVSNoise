@@ -80,8 +80,8 @@ def psyfunAlphaBeta(x,alpha,beta):
     return psy
 
 
-def fit_sigmoid(data, xdata_range=None, gammaEqLambda=False,
-                bounds=(-np.inf,np.inf), noLapses=False):
+def fit_sigmoid(data, xdata_range=None, gamma_eq_lambda=False,
+                bounds=(-np.inf,np.inf), no_lapses=False):
     """ Non-linear least squares fit of a cumulative Gaussian function to ydata, as a function of xdata.
     
     Arguments
@@ -106,22 +106,13 @@ def fit_sigmoid(data, xdata_range=None, gammaEqLambda=False,
     
     if xdata_range is None:
         xdata_range = xdata
-    if noLapses:
+    if no_lapses:
         params, covar = curve_fit(psyfunAlphaBeta, xdata, ydata, bounds=([-np.inf, 0], np.inf), max_nfev=5000) # bounds set such that slope must be positive (lower bound=0)
         psycurve = psyfunAlphaBeta(xdata_range, params[0], params[1])
-    elif gammaEqLambda:
+    elif gamma_eq_lambda:
         params, covar = curve_fit(psyfunGamEqLamb, xdata, ydata, absolute_sigma=True, bounds=bounds)
         psycurve = psyfunGamEqLamb(xdata_range, *params)
-    elif not gammaEqLambda:
+    elif not gamma_eq_lambda:
         params, covar = curve_fit(psyfun, xdata, ydata, absolute_sigma=True, bounds=bounds)
         psycurve = psyfun(xdata_range, *params)
     return psycurve, params
-
-
-def plot_psychometric_curve(ax, stimRange, psy, stimuli, resp_ratio, col):
-    ax.plot(stimRange, psy, lw=2.5, color=col)
-    ax.plot(stimuli, resp_ratio, 'o', color=col)
-    ax.set_xlim([-25,25])
-    ax.set_ylim([-0.05,1.05])
-    ax.spines['top'].set_visible(False)
-    ax.spines['right'].set_visible(False)  
