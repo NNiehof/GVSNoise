@@ -25,7 +25,10 @@
 		15,
 		15
 	],
-	"frame_angles": "noframe",
+	"frame_angles": [
+		"noframe",
+		20.0
+	],
 	"currents": [
 		1.0,
 		0.0
