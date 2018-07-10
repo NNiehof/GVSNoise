@@ -4,13 +4,13 @@
 		"settings": {
 			"start": [
 				0,
-				-100
+				-200
 			],
 			"end": [
 				0,
-				100
+				200
 			],
-			"lineWidth": 5,
+			"lineWidth": 6,
 			"lineColor": [
 				-0.84,
 				-0.84,
@@ -21,13 +21,13 @@
 	"squareFrame": {
 		"stimType": "Rect",
 		"settings": {
-			"width": 300.0,
-			"height": 300.0,
+			"width": 500.0,
+			"height": 500.0,
 			"pos": [
 				0,
 				0
 			],
-			"lineWidth": 5,
+			"lineWidth": 6,
 			"lineColor": [
 				-0.84,
 				-0.84,
