@@ -11,7 +11,7 @@ class GVS(object):
     Represents a GVS object that communicates with the NIDAQ digital-to-analog
     converter, which sends signals to the Biopac STMISOLA stimulator.
     """
-    def __init__(self, max_voltage=1.0, logger=None):
+    def __init__(self, max_voltage=3.0, logger=None):
         """
         Create a GVS communication object.
 
@@ -82,8 +82,8 @@ class GVS(object):
 
     @max_voltage.setter
     def max_voltage(self, max_voltage):
-        if max_voltage > 1.0:
-            self._max_voltage = 1.0
+        if max_voltage > 3.0:
+            self._max_voltage = 3.0
         else:
             self._max_voltage = max_voltage
 
