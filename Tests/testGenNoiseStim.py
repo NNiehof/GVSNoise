@@ -5,14 +5,14 @@ from sys import path
 from os.path import dirname
 
 path.append(dirname(path[0]))
-from Experiment.genNoiseStim import genStim
+from Experiment.genNoiseStim import GenStim
 from Experiment.GVS import GVS
 
 
 class TestGenStim(object):
     def __init__(self, f_samp):
 
-        self.gen_stim = genStim(f_samp=f_samp)
+        self.gen_stim = GenStim(f_samp=f_samp)
 
     def test_noise(self, duration, amp):
         self.gen_stim.noise(duration, amp)
@@ -42,7 +42,7 @@ def test_noise_signal(f_samp):
     except:
         return
     # white noise
-    make_stim = genStim(f_samp)
+    make_stim = GenStim(f_samp)
     make_stim.noise(10.0, 0.3)
     samples = make_stim.stim
     # gvs.write_to_channel(samples)

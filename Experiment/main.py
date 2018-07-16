@@ -490,7 +490,7 @@ class Stimuli:
         :param window: psychopy window instance
         :param settings_dir: directory where the stimulus settings are saved
         (stimuli.json)
-        :param n_trials: (optional) number of trials in the experiment
+        :param n_trials: (optional) number of trials for on pause screen
         """
         self.stimuli = OrderedDict()
         self.triggers = {}

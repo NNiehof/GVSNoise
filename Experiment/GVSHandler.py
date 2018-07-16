@@ -2,7 +2,7 @@
 
 from copy import deepcopy
 from Experiment.GVS import GVS
-from Experiment.genNoiseStim import genStim
+from Experiment.genNoiseStim import GenStim
 from Experiment.loggingConfig import Worker, formatter, default_logging_level
 
 
@@ -17,7 +17,7 @@ class GVSHandler():
         self.logging_queue = logging_queue
 
         # stimulus generation
-        self.makeStim = genStim(f_samp=SAMPLING_FREQ)
+        self.makeStim = GenStim(f_samp=SAMPLING_FREQ)
         self.stimulus = self.makeStim.stim
 
         # set up logger

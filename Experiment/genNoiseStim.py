@@ -5,7 +5,7 @@ from __future__ import division
 import numpy as np
 
 
-class genStim(object):
+class GenStim(object):
     def __init__(self, f_samp=1e3):
         """
         Class to create single-channel noise stimuli.
