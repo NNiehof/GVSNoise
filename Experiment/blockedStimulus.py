@@ -28,7 +28,7 @@ class BlockStim:
                     else:
                         # this is to avoid iterating over letters when the
                         # only condition is "noframe" (string)
-                        self.trials.append([stim, frame_angles, curr])
+                        self.trials.append([stim, frame_angles[0], curr])
         # split trial list in half over GVS current condition
         # TODO: make this flexible for > 2 current conditions
         half = int(len(self.trials) / 2)

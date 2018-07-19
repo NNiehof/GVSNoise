@@ -115,7 +115,7 @@ class Experiment:
 
     def _logger_setup(self, log_file):
         """
-        Establish a connection for parallel processes to log to s single file.
+        Establish a connection for parallel processes to log to a single file.
 
         :param log_file: str
         """
